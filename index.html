@@ -1129,7 +1129,7 @@
                 });
             }
 
-            // Rendu du résumé période (inclut la session courante)
+            // Rendu du résumé période (corrigé : pas de branche spéciale)
             async function renderResume() {
                 const period = DOM.periodSelect.value;
                 let startDate, endDate;
@@ -1137,28 +1137,11 @@
                 today.setHours(0,0,0,0);
 
                 if (period === 'today') {
-                    const todayStr = new Date().toISOString().slice(0,10);
-                    if (AppState.currentSessionDate === todayStr) {
-                        const totalD = AppState.entries.reduce((s, e) => s + e.dollars, 0);
-                        const totalC = AppState.entries.reduce((s, e) => s + e.dollars * e.prix, 0);
-                        const totalB = AppState.entries.reduce((s, e) => s + e.benef, 0);
-                        DOM.periodTitle.innerText = `Période : Aujourd'hui (${todayStr})`;
-                        DOM.resTotalDollars.innerText = totalD.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' $';
-                        DOM.resTotalCfa.innerText = totalC.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
-                        DOM.resTotalBenef.innerText = totalB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
-                        const avgP = totalD ? totalC / totalD : 0;
-                        const avgB = totalD ? totalB / totalD : 0;
-                        const margin = totalC ? (totalB / totalC * 100) : 0;
-                        DOM.resAvgPrice.innerText = avgP.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
-                        DOM.resAvgBenef.innerText = avgB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
-                        DOM.resMargin.innerText = margin.toFixed(2) + ' %';
-                        return;
-                    } else {
-                        startDate = endDate = today;
-                    }
+                    startDate = new Date(today);
+                    endDate = new Date(today);
                 } else if (period === 'week') {
                     startDate = new Date(today);
-                    startDate.setDate(today.getDate() - (today.getDay() || 7) + 1);
+                    startDate.setDate(today.getDate() - (today.getDay() || 7) + 1); // lundi
                     endDate = today;
                 } else if (period === 'prevWeek') {
                     startDate = new Date(today);
@@ -1190,6 +1173,7 @@
                 const endStr = endDate.toISOString().slice(0,10);
                 DOM.periodTitle.innerText = `Période : ${period} (${startStr} au ${endStr})`;
 
+                // Récupérer toutes les sessions depuis IndexedDB
                 const tx = db.transaction('dailySessions', 'readonly');
                 const store = tx.objectStore('dailySessions');
                 const all = await store.getAll();
@@ -1199,6 +1183,7 @@
 
                 let totalD = 0, totalC = 0, totalB = 0;
 
+                // Ajouter les sessions de la base (sauf la date courante pour éviter double comptage)
                 for (let date in sessionsMap) {
                     if (date >= startStr && date <= endStr && date !== AppState.currentSessionDate) {
                         const session = sessionsMap[date];
@@ -1210,6 +1195,7 @@
                     }
                 }
 
+                // Ajouter la session courante (en mémoire) si sa date est dans la période
                 if (AppState.currentSessionDate >= startStr && AppState.currentSessionDate <= endStr) {
                     AppState.entries.forEach(e => {
                         totalD += e.dollars;
@@ -1471,6 +1457,7 @@
                     });
                 });
 
+                // Archives
                 DOM.btnLoadArchive.addEventListener('click', async () => {
                     const date = DOM.archiveSelect.value;
                     if (date && date !== 'Choisir une date') {
@@ -1481,12 +1468,15 @@
                 DOM.btnRefreshArchives.addEventListener('click', refreshArchiveList);
                 DOM.logFilter.addEventListener('input', () => renderLogs(DOM.logFilter.value));
 
+                // Résumé période : mise à jour automatique lors du changement de période
                 DOM.periodSelect.addEventListener('change', () => {
                     DOM.customDates.style.display = DOM.periodSelect.value === 'custom' ? 'flex' : 'none';
+                    renderResume(); // ← Ajout pour mise à jour automatique
                 });
                 DOM.btnRefreshResume.addEventListener('click', renderResume);
                 DOM.btnApplyCustom.addEventListener('click', renderResume);
 
+                // Profil
                 DOM.btnSaveSettings.addEventListener('click', () => {
                     AppState.stockThreshold = parseFloat(DOM.settingThreshold.value) || 500;
                     AppState.dailyGoal = parseFloat(DOM.settingDailyGoal.value) || 50000;
