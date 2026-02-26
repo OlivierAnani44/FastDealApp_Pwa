@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FastDeal</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* ========== VARIABLES CSS (thème sombre) ========== */
+        :root {
+            --primary: #ff8c00;
+            --primary-light: #ffb347;
+            --secondary: #1e90ff;
+            --success: #32cd32;
+            --warning: #ffa500;
+            --danger: #cc3333;
+            --info: #00bfff;
+            --bg-dark: #121212;
+            --bg-light: #2a2a2a;
+            --card-bg: #1e1e1e;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-muted: #808080;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* En-tête */
+        .app-bar {
+            background-color: var(--bg-light);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            flex-shrink: 0;
+        }
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .session-info {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .rate-info {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-align: right;
+        }
+
+        /* Conteneur principal des écrans */
+        .screen-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Chaque écran est masqué par défaut */
+        .screen {
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        /* Cartes */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 1rem;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        /* Grilles */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Champs de texte */
+        input, select {
+            background-color: var(--bg-light);
+            border: 1px solid #444;
+            color: var(--text-primary);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            width: 100%;
+        }
+        input:focus {
+            outline: 2px solid var(--primary);
+        }
+
+        /* Boutons */
+        button {
+            background-color: var(--primary);
+            border: none;
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 2rem;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            border: 1px solid transparent;
+        }
+        button:active { opacity: 0.7; }
+        button.secondary { background-color: var(--secondary); }
+        button.danger { background-color: var(--danger); }
+        button:disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            cursor: default;
+        }
+
+        /* Barre de navigation basse */
+        .bottom-nav {
+            background-color: var(--bg-light);
+            display: flex;
+            justify-content: space-around;
+            padding: 0.25rem 0;
+            flex-shrink: 0;
+            border-top: 1px solid #333;
+        }
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .nav-item.active {
+            color: var(--primary);
+        }
+        .nav-item i {
+            font-size: 1.5rem;
+            margin-bottom: 0.2rem;
+        }
+
+        /* Messages */
+        .message {
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            font-weight: bold;
+        }
+        .message.success { background-color: #1e4a1e; color: #adffad; }
+        .message.error { background-color: #4a1e1e; color: #ffadad; }
+        .message.warning { background-color: #4a4a1e; color: #ffffad; }
+        .message.info { background-color: #1e4a4a; color: #adffff; }
+
+        /* Liste défilante */
+        .scrollable {
+            overflow-y: auto;
+            max-height: 100%;
+            padding-right: 0.25rem;
+        }
+
+        /* Carte d'historique / lot */
+        .history-card, .lot-card {
+            background-color: var(--bg-light);
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .card-detail {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .card-actions button {
+            flex: 1;
+            padding: 0.5rem 0.5rem;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        /* Utilitaires */
+        .flex-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .mt-2 { margin-top: 0.5rem; }
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-danger { color: var(--danger); }
+        .text-info { color: var(--info); }
+        .bold { font-weight: bold; }
+        .small { font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <!-- Barre supérieure -->
+    <div class="app-bar">
+        <span class="app-title">FastDeal</span>
+        <span class="session-info" id="sessionInfo">Chargement...</span>
+        <span class="rate-info" id="rateInfo">USD/CFA: ...</span>
+    </div>
+
+    <!-- Conteneur des écrans -->
+    <div class="screen-container" id="screenContainer">
+        <!-- Écran SAISIE -->
+        <div id="screenSaisie" class="screen active">
+            <div class="card">
+                <div id="stockTotal" class="text-success bold">Stock disponible : 0 $</div>
+                <div id="stockValue" class="text-warning bold">Valeur stock : 0 CFA</div>
+                <div id="stockAlert" class="text-danger small"></div>
+            </div>
+            <div class="card">
+                <div class="grid-2">
+                    <span>Qté vendue ($)</span>
+                    <input type="number" id="venteQty" step="0.01" min="0" placeholder="100.50">
+                    <span>Prix vente (CFA/$)</span>
+                    <input type="number" id="ventePrix" step="1" min="0" placeholder="650">
+                </div>
+                <div id="previewRevenu" class="text-success bold mt-2">Revenu estimé : 0 CFA</div>
+                <div id="previewBenef" class="text-warning bold">Bénéfice estimé* : 0 CFA</div>
+                <button id="btnVendre" class="mt-2">Vendre</button>
+            </div>
+            <div class="card" id="dailyGoalCard" style="display: none;">
+                <div id="dailyGoalLabel"></div>
+                <progress id="dailyGoalProgress" value="0" max="100" style="width:100%; height:20px;"></progress>
+            </div>
+            <div id="messageArea" class="message"></div>
+        </div>
+
+        <!-- Écran HISTORIQUE -->
+        <div id="screenHistorique" class="screen">
+            <div class="flex-row">
+                <input type="text" id="histFilter" placeholder="Filtrer par montant..." style="flex:1;">
+                <button id="btnRefreshHist" class="secondary" style="width:auto;">⟳</button>
+            </div>
+            <div class="scrollable" id="histList"></div>
+        </div>
+
+        <!-- Écran CALCULS -->
+        <div id="screenCalculs" class="screen">
+            <div class="card">
+                <h3>Résumé de la session</h3>
+                <div class="grid-2">
+                    <span>Total $ vendus :</span><span id="calcTotalDollars" class="bold text-primary">0 $</span>
+                    <span>Revenu total :</span><span id="calcTotalCfa" class="bold text-success">0 CFA</span>
+                    <span>Bénéfice total :</span><span id="calcTotalBenef" class="bold text-warning">0 CFA</span>
+                    <span>Prix moyen :</span><span id="calcAvgPrice" class="bold">0 CFA/$</span>
+                    <span>Bénéfice moyen :</span><span id="calcAvgBenef" class="bold">0 CFA/$</span>
+                    <span>Marge :</span><span id="calcMargin" class="bold">0 %</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="flex-row">
+                    <button id="btnSaveSession" class="secondary">💾 Sauvegarder</button>
+                    <button id="btnRecalc" class="secondary">📊 Recalculer</button>
+                </div>
+                <div class="flex-row">
+                    <input type="checkbox" id="autoSaveCheck" checked>
+                    <label>Auto-sauvegarde</label>
+                </div>
+                <div id="saveMessage" class="small"></div>
+                <button id="btnClearAll" class="danger mt-2">🧹 Effacer toutes les ventes</button>
+                <button id="btnExportCSV" class="secondary mt-2">📤 Exporter CSV</button>
+            </div>
+        </div>
+
+        <!-- Écran STOCKS -->
+        <div id="screenStocks" class="screen">
+            <div class="flex-row">
+                <h3 style="flex:1;">Gestion des stocks</h3>
+                <button id="btnAddLot">+ Lot</button>
+            </div>
+            <div class="card">
+                <div id="stockTotalQty" class="text-success">Quantité totale: 0 $</div>
+                <div id="stockTotalValue" class="text-warning">Valeur totale: 0 CFA</div>
+                <div id="stockAvgPrice" class="text-primary">Prix moyen: 0 CFA/$</div>
+            </div>
+            <div class="flex-row">
+                <span>Seuil d'alerte:</span>
+                <span id="thresholdDisplay" class="text-warning">500 $</span>
+            </div>
+            <div class="flex-row">
+                <input type="checkbox" id="showAllLots" checked>
+                <label>Afficher tous les lots</label>
+            </div>
+            <div class="scrollable" id="stockList"></div>
+        </div>
+
+        <!-- Écran RÉSUMÉ PÉRIODE -->
+        <div id="screenResume" class="screen">
+            <div class="card">
+                <div class="flex-row">
+                    <select id="periodSelect">
+                        <option value="today">Aujourd'hui</option>
+                        <option value="week" selected>Semaine en cours</option>
+                        <option value="prevWeek">Semaine précédente</option>
+                        <option value="month">Mois en cours</option>
+                        <option value="prevMonth">Mois précédent</option>
+                        <option value="year">Année en cours</option>
+                        <option value="prevYear">Année précédente</option>
+                        <option value="custom">Personnalisé</option>
+                    </select>
+                    <button id="btnRefreshResume">Actualiser</button>
+                </div>
+                <div id="customDates" style="display: none; margin-top:0.5rem;" class="flex-row">
+                    <input type="date" id="customStart">
+                    <input type="date" id="customEnd">
+                    <button id="btnApplyCustom">OK</button>
+                </div>
+                <h4 id="periodTitle">Période : Semaine en cours</h4>
+                <div class="grid-2">
+                    <span>Total $ vendus :</span><span id="resTotalDollars" class="bold">0 $</span>
+                    <span>Revenu total :</span><span id="resTotalCfa" class="bold">0 CFA</span>
+                    <span>Bénéfice total :</span><span id="resTotalBenef" class="bold">0 CFA</span>
+                    <span>Prix moyen :</span><span id="resAvgPrice" class="bold">0 CFA/$</span>
+                    <span>Bénéfice moyen :</span><span id="resAvgBenef" class="bold">0 CFA/$</span>
+                    <span>Marge :</span><span id="resMargin" class="bold">0 %</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Écran ARCHIVES & LOGS -->
+        <div id="screenArchives" class="screen">
+            <div class="card">
+                <div class="flex-row">
+                    <select id="archiveSelect" style="flex:2;">
+                        <option>Choisir une date</option>
+                    </select>
+                    <button id="btnLoadArchive">Charger</button>
+                    <button id="btnEditArchive" class="secondary" title="Activer édition">✏️</button>
+                </div>
+                <button id="btnRefreshArchives" class="secondary">Rafraîchir</button>
+            </div>
+            <input type="text" id="logFilter" placeholder="Filtrer les actions...">
+            <h4>Journal des actions</h4>
+            <div class="scrollable" id="logsList"></div>
+        </div>
+
+        <!-- Écran PROFIL -->
+        <div id="screenProfile" class="screen">
+            <div class="card">
+                <h3>Réglages</h3>
+                <div class="grid-2">
+                    <span>Seuil alerte ($) :</span>
+                    <input type="number" id="settingThreshold" step="1" min="0">
+                    <span>Objectif journalier (CFA) :</span>
+                    <input type="number" id="settingDailyGoal" step="1000" min="0">
+                    <span>Clé API taux de change :</span>
+                    <input type="text" id="settingApiKey" placeholder="Votre clé">
+                </div>
+                <div class="flex-row">
+                    <input type="checkbox" id="settingAutoSave" checked>
+                    <label>Auto-sauvegarde</label>
+                </div>
+                <button id="btnSaveSettings" class="secondary">Sauvegarder</button>
+                <button id="btnFetchRate" class="secondary mt-2">Mettre à jour le taux</button>
+                <div class="small text-muted" style="margin-top:1rem;">Version 7.8.1</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre de navigation basse -->
+    <div class="bottom-nav">
+        <div class="nav-item active" data-screen="saisie"><i>💰</i><span>Vente</span></div>
+        <div class="nav-item" data-screen="historique"><i>📋</i><span>Histo</span></div>
+        <div class="nav-item" data-screen="calculs"><i>📊</i><span>Calculs</span></div>
+        <div class="nav-item" data-screen="stocks"><i>📦</i><span>Stock</span></div>
+        <div class="nav-item" data-screen="resume"><i>📈</i><span>Résumé</span></div>
+        <div class="nav-item" data-screen="archives"><i>🗂️</i><span>Archives</span></div>
+        <div class="nav-item" data-screen="profile"><i>⚙️</i><span>Param</span></div>
+    </div>
+
+    <script>
+        // ==================== Application principale ====================
+        (function() {
+            // --- État global (réactif manuel) ---
+            const AppState = {
+                // Données
+                entries: [],               // ventes de la session courante
+                stockOperations: [],        // achats de la session (pour historique)
+                stocks: [],                 // lots globaux
+                actionLogs: [],             // logs de la session
+                isReadOnly: false,
+                currentSessionDate: new Date().toISOString().slice(0,10), // AAAA-MM-JJ
+
+                // Préférences
+                autoSaveEnabled: true,
+                stockThreshold: 500,
+                dailyGoal: 50000,
+                apiKey: '',
+
+                // Taux de change (avec cache)
+                usdRate: 0,
+                rateLastUpdate: '',
+                rateError: '',
+                cachedRate: null,            // { value, timestamp } pour utilisation hors ligne
+
+                // UI
+                currentScreen: 'saisie',
+                message: { text: '', type: '' },
+                archiveMap: {},
+            };
+
+            // --- Références DOM ---
+            const DOM = {
+                // Éléments généraux
+                sessionInfo: document.getElementById('sessionInfo'),
+                rateInfo: document.getElementById('rateInfo'),
+                messageArea: document.getElementById('messageArea'),
+                screens: {
+                    saisie: document.getElementById('screenSaisie'),
+                    historique: document.getElementById('screenHistorique'),
+                    calculs: document.getElementById('screenCalculs'),
+                    stocks: document.getElementById('screenStocks'),
+                    resume: document.getElementById('screenResume'),
+                    archives: document.getElementById('screenArchives'),
+                    profile: document.getElementById('screenProfile'),
+                },
+                navItems: document.querySelectorAll('.nav-item'),
+
+                // Saisie
+                venteQty: document.getElementById('venteQty'),
+                ventePrix: document.getElementById('ventePrix'),
+                previewRevenu: document.getElementById('previewRevenu'),
+                previewBenef: document.getElementById('previewBenef'),
+                btnVendre: document.getElementById('btnVendre'),
+                stockTotal: document.getElementById('stockTotal'),
+                stockValue: document.getElementById('stockValue'),
+                stockAlert: document.getElementById('stockAlert'),
+                dailyGoalCard: document.getElementById('dailyGoalCard'),
+                dailyGoalLabel: document.getElementById('dailyGoalLabel'),
+                dailyGoalProgress: document.getElementById('dailyGoalProgress'),
+
+                // Historique
+                histFilter: document.getElementById('histFilter'),
+                btnRefreshHist: document.getElementById('btnRefreshHist'),
+                histList: document.getElementById('histList'),
+
+                // Calculs
+                calcTotalDollars: document.getElementById('calcTotalDollars'),
+                calcTotalCfa: document.getElementById('calcTotalCfa'),
+                calcTotalBenef: document.getElementById('calcTotalBenef'),
+                calcAvgPrice: document.getElementById('calcAvgPrice'),
+                calcAvgBenef: document.getElementById('calcAvgBenef'),
+                calcMargin: document.getElementById('calcMargin'),
+                btnSaveSession: document.getElementById('btnSaveSession'),
+                btnRecalc: document.getElementById('btnRecalc'),
+                autoSaveCheck: document.getElementById('autoSaveCheck'),
+                saveMessage: document.getElementById('saveMessage'),
+                btnClearAll: document.getElementById('btnClearAll'),
+                btnExportCSV: document.getElementById('btnExportCSV'),
+
+                // Stocks
+                btnAddLot: document.getElementById('btnAddLot'),
+                stockTotalQty: document.getElementById('stockTotalQty'),
+                stockTotalValue: document.getElementById('stockTotalValue'),
+                stockAvgPrice: document.getElementById('stockAvgPrice'),
+                thresholdDisplay: document.getElementById('thresholdDisplay'),
+                showAllLots: document.getElementById('showAllLots'),
+                stockList: document.getElementById('stockList'),
+
+                // Résumé période
+                periodSelect: document.getElementById('periodSelect'),
+                btnRefreshResume: document.getElementById('btnRefreshResume'),
+                customDates: document.getElementById('customDates'),
+                customStart: document.getElementById('customStart'),
+                customEnd: document.getElementById('customEnd'),
+                btnApplyCustom: document.getElementById('btnApplyCustom'),
+                periodTitle: document.getElementById('periodTitle'),
+                resTotalDollars: document.getElementById('resTotalDollars'),
+                resTotalCfa: document.getElementById('resTotalCfa'),
+                resTotalBenef: document.getElementById('resTotalBenef'),
+                resAvgPrice: document.getElementById('resAvgPrice'),
+                resAvgBenef: document.getElementById('resAvgBenef'),
+                resMargin: document.getElementById('resMargin'),
+
+                // Archives
+                archiveSelect: document.getElementById('archiveSelect'),
+                btnLoadArchive: document.getElementById('btnLoadArchive'),
+                btnEditArchive: document.getElementById('btnEditArchive'),
+                btnRefreshArchives: document.getElementById('btnRefreshArchives'),
+                logFilter: document.getElementById('logFilter'),
+                logsList: document.getElementById('logsList'),
+
+                // Profil
+                settingThreshold: document.getElementById('settingThreshold'),
+                settingDailyGoal: document.getElementById('settingDailyGoal'),
+                settingApiKey: document.getElementById('settingApiKey'),
+                settingAutoSave: document.getElementById('settingAutoSave'),
+                btnSaveSettings: document.getElementById('btnSaveSettings'),
+                btnFetchRate: document.getElementById('btnFetchRate'),
+            };
+
+            // --- Initialisation de la base IndexedDB ---
+            const DB_NAME = 'FastDealDB';
+            const DB_VERSION = 1;
+            let db = null;
+
+            function openDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(DB_NAME, DB_VERSION);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        db = request.result;
+                        resolve(db);
+                    };
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains('dailySessions')) {
+                            const sessionStore = db.createObjectStore('dailySessions', { keyPath: 'date' });
+                            sessionStore.createIndex('date', 'date', { unique: true });
+                        }
+                        if (!db.objectStoreNames.contains('stockLots')) {
+                            db.createObjectStore('stockLots', { keyPath: 'lot_id' });
+                        }
+                        if (!db.objectStoreNames.contains('config')) {
+                            db.createObjectStore('config');
+                        }
+                    };
+                });
+            }
+
+            // --- Fonctions de stockage ---
+            async function saveCurrentSession() {
+                if (AppState.isReadOnly) return;
+                const session = {
+                    date: AppState.currentSessionDate,
+                    entries: AppState.entries,
+                    stockOperations: AppState.stockOperations,
+                    actionLogs: AppState.actionLogs,
+                };
+                const tx = db.transaction('dailySessions', 'readwrite');
+                tx.objectStore('dailySessions').put(session);
+                return tx.complete;
+            }
+
+            async function loadSession(date) {
+                const tx = db.transaction('dailySessions', 'readonly');
+                const store = tx.objectStore('dailySessions');
+                const request = store.get(date);
+                return new Promise((resolve, reject) => {
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async function saveStockLots() {
+                const tx = db.transaction('stockLots', 'readwrite');
+                const store = tx.objectStore('stockLots');
+                store.clear();
+                for (let lot of AppState.stocks) {
+                    store.put(lot);
+                }
+                return tx.complete;
+            }
+
+            async function loadStockLots() {
+                const tx = db.transaction('stockLots', 'readonly');
+                const store = tx.objectStore('stockLots');
+                const request = store.getAll();
+                return new Promise((resolve, reject) => {
+                    request.onsuccess = () => {
+                        AppState.stocks = request.result || [];
+                        resolve();
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            }
+
+            async function saveConfig() {
+                localStorage.setItem('fastdeal_config', JSON.stringify({
+                    stockThreshold: AppState.stockThreshold,
+                    autoSaveEnabled: AppState.autoSaveEnabled,
+                    dailyGoal: AppState.dailyGoal,
+                    apiKey: AppState.apiKey,
+                }));
+            }
+
+            function loadConfig() {
+                const cfg = localStorage.getItem('fastdeal_config');
+                if (cfg) {
+                    try {
+                        const parsed = JSON.parse(cfg);
+                        AppState.stockThreshold = parsed.stockThreshold || 500;
+                        AppState.autoSaveEnabled = parsed.autoSaveEnabled !== undefined ? parsed.autoSaveEnabled : true;
+                        AppState.dailyGoal = parsed.dailyGoal || 50000;
+                        AppState.apiKey = parsed.apiKey || '';
+                    } catch (e) {}
+                }
+                DOM.settingThreshold.value = AppState.stockThreshold;
+                DOM.settingDailyGoal.value = AppState.dailyGoal;
+                DOM.settingApiKey.value = AppState.apiKey;
+                DOM.settingAutoSave.checked = AppState.autoSaveEnabled;
+            }
+
+            // --- Gestion du taux de change avec cache ---
+            function loadCachedRate() {
+                const cached = localStorage.getItem('fastdeal_rate');
+                if (cached) {
+                    try {
+                        AppState.cachedRate = JSON.parse(cached);
+                    } catch (e) {}
+                }
+            }
+            function saveCachedRate(value) {
+                const cache = { value, timestamp: Date.now() };
+                localStorage.setItem('fastdeal_rate', JSON.stringify(cache));
+                AppState.cachedRate = cache;
+            }
+
+            async function fetchExchangeRate(force = false) {
+                if (!AppState.apiKey) {
+                    AppState.rateError = 'Clé API manquante';
+                    updateRateDisplay();
+                    return;
+                }
+                // Vérifier si on a un cache récent (< 24h) et pas de force
+                if (!force && AppState.cachedRate && (Date.now() - AppState.cachedRate.timestamp) < 24*60*60*1000) {
+                    AppState.usdRate = AppState.cachedRate.value;
+                    AppState.rateLastUpdate = new Date(AppState.cachedRate.timestamp).toLocaleTimeString();
+                    AppState.rateError = '(caché)';
+                    updateRateDisplay();
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`https://v6.exchangerate-api.com/v6/${AppState.apiKey}/latest/USD`);
+                    const data = await response.json();
+                    if (data.result === 'success') {
+                        const rate = data.conversion_rates.XOF || 0;
+                        AppState.usdRate = rate;
+                        AppState.rateLastUpdate = new Date().toLocaleTimeString();
+                        AppState.rateError = '';
+                        saveCachedRate(rate);
+                    } else {
+                        AppState.rateError = data['error-type'] || 'Erreur';
+                    }
+                } catch (e) {
+                    AppState.rateError = 'Réseau';
+                    // En cas d'erreur réseau, on utilise le cache si disponible
+                    if (AppState.cachedRate) {
+                        AppState.usdRate = AppState.cachedRate.value;
+                        AppState.rateLastUpdate = new Date(AppState.cachedRate.timestamp).toLocaleTimeString() + ' (caché)';
+                        AppState.rateError = '(hors ligne)';
+                    }
+                }
+                updateRateDisplay();
+            }
+
+            function updateRateDisplay() {
+                if (AppState.rateError) {
+                    DOM.rateInfo.innerText = `USD/CFA: ${AppState.rateError}`;
+                } else if (AppState.usdRate) {
+                    DOM.rateInfo.innerText = `USD/CFA: 1 $ = ${AppState.usdRate.toFixed(0)} CFA (${AppState.rateLastUpdate})`;
+                } else {
+                    DOM.rateInfo.innerText = 'USD/CFA: ...';
+                }
+            }
+
+            // --- Fonctions métier ---
+
+            // Ajouter une vente (logique FIFO)
+            function ajouterVente(qty, prixVente) {
+                if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return false; }
+                if (qty <= 0 || prixVente <= 0) { showMessage('Quantité et prix positifs', 'warning'); return false; }
+
+                const totalDispo = AppState.stocks.reduce((acc, lot) => acc + lot.remaining, 0);
+                if (qty > totalDispo) {
+                    showMessage(`Stock insuffisant ! Disponible: ${totalDispo.toFixed(2)} $`, 'error');
+                    return false;
+                }
+
+                const lotsTries = [...AppState.stocks].sort((a,b) => new Date(a.date) - new Date(b.date));
+                let reste = qty;
+                let beneficeTotal = 0;
+                const preleves = [];
+
+                for (let lot of lotsTries) {
+                    if (lot.remaining <= 0) continue;
+                    const preleve = Math.min(lot.remaining, reste);
+                    beneficeTotal += preleve * (prixVente - lot.price);
+                    lot.remaining -= preleve;
+                    reste -= preleve;
+                    preleves.push({ lot_id: lot.lot_id, qty: preleve, price: lot.price });
+                    if (reste <= 0) break;
+                }
+
+                if (reste > 0) {
+                    showMessage('Erreur interne de prélèvement', 'error');
+                    return false;
+                }
+
+                const timestamp = new Date().toISOString();
+                const vente = {
+                    dollars: qty,
+                    prix: prixVente,
+                    benef: beneficeTotal,
+                    timestamp,
+                    preleves
+                };
+                AppState.entries.push(vente);
+                ajouterLog('ajout_vente', `💰 Vente: ${qty.toFixed(2)} $ à ${prixVente} CFA/$ (bénéfice ${beneficeTotal.toFixed(0)} CFA)`);
+
+                if (AppState.autoSaveEnabled) {
+                    saveCurrentSession().then(() => saveStockLots());
+                } else {
+                    saveStockLots();
+                }
+
+                showMessage('Vente enregistrée', 'success');
+                renderAll();
+                return true;
+            }
+
+            // Ajouter un lot d'achat
+            function ajouterLotAchat(date, qty, price) {
+                if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return; }
+                if (qty <= 0 || price <= 0) { showMessage('Quantité et prix positifs', 'warning'); return; }
+                const lot_id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + Math.random();
+                const newLot = {
+                    lot_id,
+                    date,
+                    qty,
+                    price,
+                    remaining: qty,
+                    timestamp: new Date().toISOString()
+                };
+                AppState.stocks.push(newLot);
+                AppState.stockOperations.push({
+                    type: 'achat',
+                    lot_id,
+                    date,
+                    qty,
+                    price,
+                    timestamp: newLot.timestamp
+                });
+                AppState.stocks.sort((a,b) => new Date(a.date) - new Date(b.date));
+                ajouterLog('ajout_achat', `➕ Achat: ${qty.toFixed(2)} $ à ${price} CFA/$ le ${date}`);
+
+                if (AppState.autoSaveEnabled) {
+                    saveCurrentSession().then(() => saveStockLots());
+                } else {
+                    saveStockLots();
+                }
+                renderAll();
+                showMessage('Lot ajouté', 'success');
+            }
+
+            // Supprimer un lot (seulement si non utilisé)
+            function supprimerLot(lot) {
+                if (lot.remaining !== lot.qty) {
+                    showMessage('Impossible de supprimer un lot partiellement utilisé.', 'error');
+                    return;
+                }
+                AppState.stocks = AppState.stocks.filter(l => l.lot_id !== lot.lot_id);
+                AppState.stockOperations = AppState.stockOperations.filter(op => op.lot_id !== lot.lot_id);
+                ajouterLog('suppression_achat', `🗑️ Lot du ${lot.date} de ${lot.qty.toFixed(2)} $ à ${lot.price} CFA/$ supprimé`);
+                saveStockLots();
+                renderAll();
+                showMessage('Lot supprimé', 'success');
+            }
+
+            // Supprimer une vente (restaure le stock)
+            function supprimerVente(vente) {
+                if (!vente.preleves) {
+                    showMessage('Vente ancien format, suppression impossible', 'error');
+                    return;
+                }
+                for (let p of vente.preleves) {
+                    const lot = AppState.stocks.find(l => l.lot_id === p.lot_id);
+                    if (lot) lot.remaining += p.qty;
+                }
+                AppState.entries = AppState.entries.filter(e => e !== vente);
+                ajouterLog('suppression_vente', `🗑️ Vente supprimée : ${vente.dollars.toFixed(2)} $ à ${vente.prix} CFA`);
+                if (AppState.autoSaveEnabled) saveCurrentSession();
+                saveStockLots();
+                renderAll();
+                showMessage('Vente supprimée, stock restauré', 'success');
+            }
+
+            // Éditer une vente (simplifiée)
+            function editerVente(vente, newQty, newPrix) {
+                if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return; }
+                // Annulation
+                for (let p of vente.preleves) {
+                    const lot = AppState.stocks.find(l => l.lot_id === p.lot_id);
+                    if (lot) lot.remaining += p.qty;
+                }
+                // Tentative de nouveau prélèvement
+                const lotsTries = [...AppState.stocks].sort((a,b) => new Date(a.date) - new Date(b.date));
+                let reste = newQty;
+                let newBenef = 0;
+                const newPreleves = [];
+                for (let lot of lotsTries) {
+                    if (lot.remaining <= 0) continue;
+                    const preleve = Math.min(lot.remaining, reste);
+                    newBenef += preleve * (newPrix - lot.price);
+                    lot.remaining -= preleve;
+                    reste -= preleve;
+                    newPreleves.push({ lot_id: lot.lot_id, qty: preleve, price: lot.price });
+                    if (reste <= 0) break;
+                }
+                if (reste > 0) {
+                    // Échec : restaurer l'ancien état
+                    for (let p of vente.preleves) {
+                        const lot = AppState.stocks.find(l => l.lot_id === p.lot_id);
+                        if (lot) lot.remaining -= p.qty;
+                    }
+                    showMessage('Stock insuffisant pour la modification', 'error');
+                    return;
+                }
+                // Mise à jour
+                vente.dollars = newQty;
+                vente.prix = newPrix;
+                vente.benef = newBenef;
+                vente.preleves = newPreleves;
+                ajouterLog('modification_vente', `✏️ Vente modifiée : ${vente.dollars} $ à ${vente.prix} CFA`);
+                if (AppState.autoSaveEnabled) saveCurrentSession();
+                saveStockLots();
+                renderAll();
+                showMessage('Vente modifiée', 'success');
+            }
+
+            // Effacer toutes les ventes de la session courante
+            function clearAllSales() {
+                if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return; }
+                if (AppState.entries.length === 0) { showMessage('Aucune vente à effacer', 'info'); return; }
+                if (!confirm('Voulez-vous vraiment effacer toutes les ventes ? (Le stock sera restauré)')) return;
+                // Restaurer le stock pour chaque vente
+                for (let vente of AppState.entries) {
+                    if (vente.preleves) {
+                        for (let p of vente.preleves) {
+                            const lot = AppState.stocks.find(l => l.lot_id === p.lot_id);
+                            if (lot) lot.remaining += p.qty;
+                        }
+                    }
+                }
+                ajouterLog('suppression_masse', `🧹 Toutes les ventes (${AppState.entries.length}) effacées`);
+                AppState.entries = [];
+                if (AppState.autoSaveEnabled) saveCurrentSession();
+                saveStockLots();
+                renderAll();
+                showMessage('Toutes les ventes ont été effacées', 'success');
+            }
+
+            // Calculs session
+            function updateCalculs() {
+                const totalD = AppState.entries.reduce((s, e) => s + e.dollars, 0);
+                const totalC = AppState.entries.reduce((s, e) => s + e.dollars * e.prix, 0);
+                const totalB = AppState.entries.reduce((s, e) => s + e.benef, 0);
+                DOM.calcTotalDollars.innerText = totalD.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' $';
+                DOM.calcTotalCfa.innerText = totalC.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
+                DOM.calcTotalBenef.innerText = totalB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
+                const avgPrice = totalD ? totalC / totalD : 0;
+                const avgBenef = totalD ? totalB / totalD : 0;
+                const margin = totalC ? (totalB / totalC * 100) : 0;
+                DOM.calcAvgPrice.innerText = avgPrice.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
+                DOM.calcAvgBenef.innerText = avgBenef.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
+                DOM.calcMargin.innerText = margin.toFixed(2) + ' %';
+            }
+
+            // Mise à jour de l'aperçu vente
+            function updatePreview() {
+                const qty = parseFloat(DOM.venteQty.value) || 0;
+                const prix = parseFloat(DOM.ventePrix.value) || 0;
+                const revenu = qty * prix;
+                DOM.previewRevenu.innerText = `Revenu estimé : ${revenu.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} CFA`;
+
+                if (qty <= 0 || prix <= 0) {
+                    DOM.previewBenef.innerText = 'Bénéfice estimé* : 0 CFA';
+                    return;
+                }
+                const totalDispo = AppState.stocks.reduce((acc, lot) => acc + lot.remaining, 0);
+                if (qty > totalDispo) {
+                    DOM.previewBenef.innerText = `⚠️ Stock insuffisant (dispo: ${totalDispo.toFixed(2)} $)`;
+                    DOM.previewBenef.className = 'text-danger bold mt-2';
+                    return;
+                }
+                const lotsTries = [...AppState.stocks].sort((a,b) => new Date(a.date) - new Date(b.date));
+                let reste = qty;
+                let benefEstime = 0;
+                for (let lot of lotsTries) {
+                    if (lot.remaining <= 0) continue;
+                    const preleve = Math.min(lot.remaining, reste);
+                    benefEstime += preleve * (prix - lot.price);
+                    reste -= preleve;
+                    if (reste <= 0) break;
+                }
+                DOM.previewBenef.innerText = `Bénéfice estimé* : ${benefEstime.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} CFA`;
+                DOM.previewBenef.className = benefEstime >= 0 ? 'text-warning bold mt-2' : 'text-danger bold mt-2';
+            }
+
+            // Mise à jour du stock affiché dans la saisie
+            function updateStockDisplay() {
+                const totalQty = AppState.stocks.reduce((s, l) => s + l.remaining, 0);
+                const totalValue = AppState.stocks.reduce((s, l) => s + l.remaining * l.price, 0);
+                DOM.stockTotal.innerText = `Stock disponible : ${totalQty.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} $`;
+                DOM.stockValue.innerText = `Valeur stock : ${totalValue.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} CFA`;
+                if (totalQty < AppState.stockThreshold) {
+                    DOM.stockAlert.innerText = `⚠️ Stock bas ! (${totalQty.toFixed(2)} $ < seuil ${AppState.stockThreshold} $)`;
+                } else {
+                    DOM.stockAlert.innerText = '';
+                }
+                DOM.thresholdDisplay.innerText = `${AppState.stockThreshold} $`;
+            }
+
+            // Objectif journalier
+            function updateDailyGoal() {
+                const benefToday = AppState.entries.reduce((s, e) => s + e.benef, 0);
+                if (AppState.dailyGoal > 0 && !AppState.isReadOnly) {
+                    DOM.dailyGoalCard.style.display = 'block';
+                    const progress = Math.min(100, (benefToday / AppState.dailyGoal) * 100);
+                    DOM.dailyGoalProgress.value = progress;
+                    DOM.dailyGoalLabel.innerText = `Objectif journalier : ${benefToday.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} / ${AppState.dailyGoal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} CFA (${progress.toFixed(1)}%)`;
+                } else {
+                    DOM.dailyGoalCard.style.display = 'none';
+                }
+            }
+
+            // Rendu de l'historique
+            function renderHistorique(filter = '') {
+                const container = DOM.histList;
+                container.innerHTML = '';
+
+                const ventesTitle = document.createElement('h4');
+                ventesTitle.innerText = 'Ventes';
+                ventesTitle.className = 'text-success';
+                container.appendChild(ventesTitle);
+
+                if (AppState.entries.length === 0) {
+                    container.appendChild(createMessage('Aucune vente enregistrée', 'text-secondary'));
+                } else {
+                    AppState.entries.slice().reverse().forEach((vente) => {
+                        if (filter && !vente.dollars.toString().includes(filter) && !vente.prix.toString().includes(filter) && !vente.benef.toString().includes(filter)) return;
+                        const card = document.createElement('div');
+                        card.className = 'history-card';
+                        const heure = new Date(vente.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <span>Heure: ${heure}</span>
+                                <span class="text-primary bold">${vente.dollars.toFixed(2)} $</span>
+                            </div>
+                            <div class="card-detail">
+                                <span>Prix: ${vente.prix} CFA/$</span>
+                                <span>Revenu: ${(vente.dollars * vente.prix).toFixed(0)} CFA</span>
+                            </div>
+                            <div class="card-detail">
+                                <span>Bénéfice:</span>
+                                <span class="text-warning bold">${vente.benef.toFixed(0)} CFA</span>
+                            </div>
+                        `;
+                        if (!AppState.isReadOnly) {
+                            const actions = document.createElement('div');
+                            actions.className = 'card-actions';
+                            const btnModif = document.createElement('button');
+                            btnModif.innerText = 'Modifier';
+                            btnModif.onclick = () => ouvrirPopupModifVente(vente);
+                            const btnSuppr = document.createElement('button');
+                            btnSuppr.innerText = 'Supprimer';
+                            btnSuppr.className = 'danger';
+                            btnSuppr.onclick = () => {
+                                if (confirm('Supprimer cette vente ?')) supprimerVente(vente);
+                            };
+                            actions.appendChild(btnModif);
+                            actions.appendChild(btnSuppr);
+                            card.appendChild(actions);
+                        }
+                        container.appendChild(card);
+                    });
+                }
+
+                const achatsTitle = document.createElement('h4');
+                achatsTitle.innerText = 'Achats';
+                achatsTitle.className = 'text-info';
+                container.appendChild(achatsTitle);
+
+                if (AppState.stockOperations.length === 0) {
+                    container.appendChild(createMessage('Aucun achat enregistré', 'text-secondary'));
+                } else {
+                    AppState.stockOperations.slice().reverse().forEach(op => {
+                        if (filter && !op.qty.toString().includes(filter) && !op.price.toString().includes(filter)) return;
+                        const dateAff = op.date.split('-').reverse().join('/');
+                        const total = op.qty * op.price;
+                        const heure = new Date(op.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        const card = document.createElement('div');
+                        card.className = 'history-card';
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <span>Heure: ${heure}</span>
+                                <span class="text-primary">Date: ${dateAff}</span>
+                            </div>
+                            <div class="card-detail">
+                                <span>Qté: ${op.qty.toFixed(2)} $</span>
+                                <span>Prix: ${op.price} CFA/$</span>
+                            </div>
+                            <div class="card-detail">
+                                <span>Total:</span>
+                                <span class="text-warning bold">${total.toFixed(0)} CFA</span>
+                            </div>
+                        `;
+                        if (!AppState.isReadOnly) {
+                            const lot = AppState.stocks.find(l => l.lot_id === op.lot_id);
+                            const utilisable = lot && lot.remaining === lot.qty;
+                            const actions = document.createElement('div');
+                            actions.className = 'card-actions';
+                            const btnModif = document.createElement('button');
+                            btnModif.innerText = 'Modifier';
+                            btnModif.disabled = !utilisable;
+                            btnModif.onclick = () => ouvrirPopupModifAchat(op, lot);
+                            const btnSuppr = document.createElement('button');
+                            btnSuppr.innerText = 'Supprimer';
+                            btnSuppr.className = 'danger';
+                            btnSuppr.disabled = !utilisable;
+                            btnSuppr.onclick = () => {
+                                if (confirm('Supprimer cet achat ?')) supprimerLot(lot);
+                            };
+                            actions.appendChild(btnModif);
+                            actions.appendChild(btnSuppr);
+                            card.appendChild(actions);
+                        }
+                        container.appendChild(card);
+                    });
+                }
+            }
+
+            // Rendu des stocks
+            function renderStocks(showAll = true) {
+                const container = DOM.stockList;
+                container.innerHTML = '';
+
+                const totalQty = AppState.stocks.reduce((s, l) => s + l.remaining, 0);
+                const totalValue = AppState.stocks.reduce((s, l) => s + l.remaining * l.price, 0);
+                const avgPrice = totalQty ? totalValue / totalQty : 0;
+                DOM.stockTotalQty.innerText = `Quantité totale: ${totalQty.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} $`;
+                DOM.stockTotalValue.innerText = `Valeur totale: ${totalValue.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} CFA`;
+                DOM.stockAvgPrice.innerText = `Prix moyen: ${avgPrice.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} CFA/$`;
+
+                const lotsAffiches = showAll ? AppState.stocks : AppState.stocks.filter(l => l.remaining > 0);
+                if (lotsAffiches.length === 0) {
+                    container.appendChild(createMessage('Aucun lot.', 'text-secondary'));
+                    return;
+                }
+
+                lotsAffiches.sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(lot => {
+                    const dateAff = lot.date.split('-').reverse().join('/');
+                    const card = document.createElement('div');
+                    card.className = 'history-card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <span>Date: ${dateAff}</span>
+                            <span class="text-primary">Qté init: ${lot.qty.toFixed(2)} $</span>
+                        </div>
+                        <div class="card-detail">
+                            <span>Restant: <span class="${lot.remaining>0?'text-success':'text-muted'}">${lot.remaining.toFixed(2)} $</span></span>
+                            <span>Prix: ${lot.price} CFA/$</span>
+                        </div>
+                        <div class="card-detail">
+                            <span>Valeur restante:</span>
+                            <span class="text-warning bold">${(lot.remaining * lot.price).toFixed(0)} CFA</span>
+                        </div>
+                    `;
+                    if (!AppState.isReadOnly && lot.remaining === lot.qty) {
+                        const btnSuppr = document.createElement('button');
+                        btnSuppr.innerText = 'Supprimer';
+                        btnSuppr.className = 'danger';
+                        btnSuppr.style.marginTop = '0.5rem';
+                        btnSuppr.onclick = () => {
+                            if (confirm('Supprimer ce lot ?')) supprimerLot(lot);
+                        };
+                        card.appendChild(btnSuppr);
+                    }
+                    container.appendChild(card);
+                });
+            }
+
+            // Rendu des logs
+            function renderLogs(filter = '') {
+                const container = DOM.logsList;
+                container.innerHTML = '';
+                if (AppState.actionLogs.length === 0) {
+                    container.appendChild(createMessage('Aucune action.', 'text-secondary'));
+                    return;
+                }
+                AppState.actionLogs.slice().reverse().forEach(log => {
+                    if (filter && !log.description.toLowerCase().includes(filter.toLowerCase())) return;
+                    const date = new Date(log.timestamp).toLocaleString();
+                    const card = document.createElement('div');
+                    card.className = 'history-card';
+                    card.innerHTML = `
+                        <div class="small text-muted">${date}</div>
+                        <div class="${log.type.startsWith('ajout')?'text-success':log.type.startsWith('modification')?'text-warning':log.type.startsWith('suppression')?'text-danger':'text-info'}">${log.description}</div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            // Rendu du résumé période (inclut la session courante)
+            async function renderResume() {
+                const period = DOM.periodSelect.value;
+                let startDate, endDate;
+                const today = new Date();
+                today.setHours(0,0,0,0);
+
+                if (period === 'today') {
+                    const todayStr = new Date().toISOString().slice(0,10);
+                    if (AppState.currentSessionDate === todayStr) {
+                        const totalD = AppState.entries.reduce((s, e) => s + e.dollars, 0);
+                        const totalC = AppState.entries.reduce((s, e) => s + e.dollars * e.prix, 0);
+                        const totalB = AppState.entries.reduce((s, e) => s + e.benef, 0);
+                        DOM.periodTitle.innerText = `Période : Aujourd'hui (${todayStr})`;
+                        DOM.resTotalDollars.innerText = totalD.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' $';
+                        DOM.resTotalCfa.innerText = totalC.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
+                        DOM.resTotalBenef.innerText = totalB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
+                        const avgP = totalD ? totalC / totalD : 0;
+                        const avgB = totalD ? totalB / totalD : 0;
+                        const margin = totalC ? (totalB / totalC * 100) : 0;
+                        DOM.resAvgPrice.innerText = avgP.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
+                        DOM.resAvgBenef.innerText = avgB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
+                        DOM.resMargin.innerText = margin.toFixed(2) + ' %';
+                        return;
+                    } else {
+                        startDate = endDate = today;
+                    }
+                } else if (period === 'week') {
+                    startDate = new Date(today);
+                    startDate.setDate(today.getDate() - (today.getDay() || 7) + 1);
+                    endDate = today;
+                } else if (period === 'prevWeek') {
+                    startDate = new Date(today);
+                    startDate.setDate(today.getDate() - (today.getDay() || 7) + 1 - 7);
+                    endDate = new Date(today);
+                    endDate.setDate(today.getDate() - (today.getDay() || 7));
+                } else if (period === 'month') {
+                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                    endDate = today;
+                } else if (period === 'prevMonth') {
+                    startDate = new Date(today.getFullYear(), today.getMonth()-1, 1);
+                    endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                } else if (period === 'year') {
+                    startDate = new Date(today.getFullYear(), 0, 1);
+                    endDate = today;
+                } else if (period === 'prevYear') {
+                    startDate = new Date(today.getFullYear()-1, 0, 1);
+                    endDate = new Date(today.getFullYear()-1, 11, 31);
+                } else if (period === 'custom') {
+                    startDate = new Date(DOM.customStart.value + 'T00:00');
+                    endDate = new Date(DOM.customEnd.value + 'T00:00');
+                    if (isNaN(startDate) || isNaN(endDate)) {
+                        showMessage('Dates personnalisées invalides', 'warning');
+                        return;
+                    }
+                }
+
+                const startStr = startDate.toISOString().slice(0,10);
+                const endStr = endDate.toISOString().slice(0,10);
+                DOM.periodTitle.innerText = `Période : ${period} (${startStr} au ${endStr})`;
+
+                const tx = db.transaction('dailySessions', 'readonly');
+                const store = tx.objectStore('dailySessions');
+                const all = await store.getAll();
+
+                const sessionsMap = {};
+                all.forEach(s => { sessionsMap[s.date] = s; });
+
+                let totalD = 0, totalC = 0, totalB = 0;
+
+                for (let date in sessionsMap) {
+                    if (date >= startStr && date <= endStr && date !== AppState.currentSessionDate) {
+                        const session = sessionsMap[date];
+                        (session.entries || []).forEach(e => {
+                            totalD += e.dollars;
+                            totalC += e.dollars * e.prix;
+                            totalB += e.benef;
+                        });
+                    }
+                }
+
+                if (AppState.currentSessionDate >= startStr && AppState.currentSessionDate <= endStr) {
+                    AppState.entries.forEach(e => {
+                        totalD += e.dollars;
+                        totalC += e.dollars * e.prix;
+                        totalB += e.benef;
+                    });
+                }
+
+                DOM.resTotalDollars.innerText = totalD.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' $';
+                DOM.resTotalCfa.innerText = totalC.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
+                DOM.resTotalBenef.innerText = totalB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
+                const avgP = totalD ? totalC / totalD : 0;
+                const avgB = totalD ? totalB / totalD : 0;
+                const margin = totalC ? (totalB / totalC * 100) : 0;
+                DOM.resAvgPrice.innerText = avgP.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
+                DOM.resAvgBenef.innerText = avgB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
+                DOM.resMargin.innerText = margin.toFixed(2) + ' %';
+            }
+
+            // Charger la liste des archives
+            async function refreshArchiveList() {
+                const tx = db.transaction('dailySessions', 'readonly');
+                const store = tx.objectStore('dailySessions');
+                const all = await store.getAll();
+                const select = DOM.archiveSelect;
+                select.innerHTML = '<option>Choisir une date</option>';
+                all.sort((a,b) => b.date.localeCompare(a.date)).forEach(session => {
+                    const opt = document.createElement('option');
+                    opt.value = session.date;
+                    opt.innerText = session.date.split('-').reverse().join('/');
+                    select.appendChild(opt);
+                });
+            }
+
+            // Charger une archive
+            async function loadArchive(date) {
+                const session = await loadSession(date);
+                if (session) {
+                    AppState.entries = session.entries || [];
+                    AppState.stockOperations = session.stockOperations || [];
+                    AppState.actionLogs = session.actionLogs || [];
+                    AppState.isReadOnly = true;
+                    AppState.currentSessionDate = date;
+                    DOM.sessionInfo.innerText = `📦 Archive du ${date.split('-').reverse().join('/')}`;
+                    renderAll();
+                    showMessage('Archive chargée — lecture seule', 'info');
+                }
+            }
+
+            // Activer l'édition sur une archive
+            function enableEditArchive() {
+                AppState.isReadOnly = false;
+                DOM.sessionInfo.innerText = `✏️ Édition de l'archive ${AppState.currentSessionDate.split('-').reverse().join('/')}`;
+                renderAll();
+            }
+
+            // Ajouter un log
+            function ajouterLog(type, description) {
+                AppState.actionLogs.push({
+                    timestamp: new Date().toISOString(),
+                    type,
+                    description
+                });
+                if (AppState.actionLogs.length > 500) AppState.actionLogs = AppState.actionLogs.slice(-500);
+            }
+
+            // Afficher un message
+            function showMessage(text, type = 'info') {
+                AppState.message = { text, type };
+                DOM.messageArea.className = `message ${type}`;
+                DOM.messageArea.innerText = text;
+                setTimeout(() => {
+                    DOM.messageArea.innerText = '';
+                    DOM.messageArea.className = 'message';
+                }, 3000);
+            }
+
+            function createMessage(text, className) {
+                const p = document.createElement('p');
+                p.innerText = text;
+                p.className = className;
+                return p;
+            }
+
+            // Rendu global (appelé après chaque modification)
+            function renderAll() {
+                updateStockDisplay();
+                updatePreview();
+                updateDailyGoal();
+                updateCalculs();
+                renderHistorique(DOM.histFilter.value);
+                renderStocks(DOM.showAllLots.checked);
+                renderLogs(DOM.logFilter.value);
+
+                if (!AppState.isReadOnly && AppState.currentSessionDate === new Date().toISOString().slice(0,10)) {
+                    DOM.sessionInfo.innerText = `Session du ${new Date().toLocaleDateString()}`;
+                }
+                updateRateDisplay();
+
+                // Désactiver les boutons principaux en mode lecture seule
+                DOM.btnVendre.disabled = AppState.isReadOnly;
+                DOM.btnAddLot.disabled = AppState.isReadOnly;
+                DOM.btnSaveSession.disabled = AppState.isReadOnly;
+                DOM.btnClearAll.disabled = AppState.isReadOnly || AppState.entries.length === 0;
+
+                if (AppState.currentScreen === 'resume') {
+                    renderResume();
+                }
+            }
+
+            // Popups de modification
+            function ouvrirPopupModifVente(vente) {
+                const newQty = prompt('Nouvelle quantité ($)', vente.dollars);
+                if (newQty === null) return;
+                const newPrix = prompt('Nouveau prix (CFA/$)', vente.prix);
+                if (newPrix === null) return;
+                const qty = parseFloat(newQty);
+                const prix = parseFloat(newPrix);
+                if (isNaN(qty) || isNaN(prix) || qty <= 0 || prix <= 0) {
+                    showMessage('Valeurs invalides', 'error');
+                    return;
+                }
+                editerVente(vente, qty, prix);
+            }
+
+            function ouvrirPopupModifAchat(op, lot) {
+                const newDate = prompt('Nouvelle date (AAAA-MM-JJ)', op.date);
+                if (!newDate) return;
+                const newQty = prompt('Nouvelle quantité ($)', op.qty);
+                if (newQty === null) return;
+                const newPrice = prompt('Nouveau prix (CFA/$)', op.price);
+                if (newPrice === null) return;
+                const qty = parseFloat(newQty);
+                const price = parseFloat(newPrice);
+                if (isNaN(qty) || isNaN(price) || qty <= 0 || price <= 0) {
+                    showMessage('Valeurs invalides', 'error');
+                    return;
+                }
+                lot.date = newDate;
+                lot.qty = qty;
+                lot.price = price;
+                lot.remaining = qty;
+                op.date = newDate;
+                op.qty = qty;
+                op.price = price;
+                ajouterLog('modification_achat', `✏️ Achat modifié : ${newDate} ${qty} $ à ${price} CFA`);
+                if (AppState.autoSaveEnabled) saveCurrentSession();
+                saveStockLots();
+                renderAll();
+                showMessage('Achat modifié', 'success');
+            }
+
+            // --- Initialisation et événements ---
+            async function init() {
+                await openDB();
+                loadConfig();
+                loadCachedRate();
+                await loadStockLots();
+                const today = new Date().toISOString().slice(0,10);
+                const session = await loadSession(today);
+                if (session) {
+                    AppState.entries = session.entries || [];
+                    AppState.stockOperations = session.stockOperations || [];
+                    AppState.actionLogs = session.actionLogs || [];
+                }
+                AppState.currentSessionDate = today;
+                AppState.isReadOnly = false;
+
+                renderAll();
+                refreshArchiveList();
+                DOM.sessionInfo.innerText = `Session du ${new Date().toLocaleDateString()}`;
+
+                fetchExchangeRate();
+                setInterval(() => fetchExchangeRate(), 3600000);
+
+                // Validation des champs (ne pas descendre sous 0)
+                DOM.venteQty.addEventListener('blur', function() {
+                    if (this.value < 0) this.value = 0;
+                });
+                DOM.ventePrix.addEventListener('blur', function() {
+                    if (this.value < 0) this.value = 0;
+                });
+
+                DOM.venteQty.addEventListener('input', updatePreview);
+                DOM.ventePrix.addEventListener('input', updatePreview);
+                DOM.btnVendre.addEventListener('click', () => {
+                    const qty = parseFloat(DOM.venteQty.value) || 0;
+                    const prix = parseFloat(DOM.ventePrix.value) || 0;
+                    ajouterVente(qty, prix);
+                    DOM.venteQty.value = '';
+                    DOM.ventePrix.value = '';
+                });
+
+                DOM.btnRefreshHist.addEventListener('click', () => renderHistorique(DOM.histFilter.value));
+                DOM.histFilter.addEventListener('input', () => renderHistorique(DOM.histFilter.value));
+
+                DOM.btnSaveSession.addEventListener('click', async () => {
+                    await saveCurrentSession();
+                    await saveStockLots();
+                    DOM.saveMessage.innerText = '✅ Session sauvegardée !';
+                    setTimeout(() => DOM.saveMessage.innerText = '', 2000);
+                    refreshArchiveList();
+                });
+
+                DOM.btnRecalc.addEventListener('click', updateCalculs);
+                DOM.autoSaveCheck.addEventListener('change', (e) => {
+                    AppState.autoSaveEnabled = e.target.checked;
+                    saveConfig();
+                });
+
+                DOM.btnClearAll.addEventListener('click', clearAllSales);
+
+                DOM.btnExportCSV.addEventListener('click', () => {
+                    if (AppState.entries.length === 0) { showMessage('Rien à exporter', 'warning'); return; }
+                    let csv = 'Heure locale;Dollars;Prix (CFA/$);Bénéfice (CFA);Revenu (CFA)\n';
+                    AppState.entries.forEach(e => {
+                        const heure = new Date(e.timestamp).toLocaleTimeString();
+                        csv += `${heure};${e.dollars.toFixed(2)};${e.prix};${e.benef.toFixed(0)};${(e.dollars * e.prix).toFixed(0)}\n`;
+                    });
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `fastdeal_export_${new Date().toISOString().slice(0,10)}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+
+                DOM.btnAddLot.addEventListener('click', () => {
+                    const date = prompt('Date (AAAA-MM-JJ)', new Date().toISOString().slice(0,10));
+                    if (!date) return;
+                    const qty = parseFloat(prompt('Quantité ($)', ''));
+                    if (isNaN(qty) || qty <= 0) return;
+                    const price = parseFloat(prompt('Prix d\'achat (CFA/$)', ''));
+                    if (isNaN(price) || price <= 0) return;
+                    ajouterLotAchat(date, qty, price);
+                });
+
+                DOM.showAllLots.addEventListener('change', (e) => renderStocks(e.target.checked));
+
+                // Navigation
+                DOM.navItems.forEach(item => {
+                    item.addEventListener('click', () => {
+                        const screen = item.dataset.screen;
+                        DOM.navItems.forEach(nav => nav.classList.remove('active'));
+                        item.classList.add('active');
+                        Object.values(DOM.screens).forEach(s => s.classList.remove('active'));
+                        DOM.screens[screen].classList.add('active');
+                        AppState.currentScreen = screen;
+                        if (screen === 'historique') renderHistorique(DOM.histFilter.value);
+                        if (screen === 'stocks') renderStocks(DOM.showAllLots.checked);
+                        if (screen === 'archives') {
+                            renderLogs(DOM.logFilter.value);
+                            refreshArchiveList();
+                        }
+                        if (screen === 'resume') {
+                            renderResume();
+                        }
+                    });
+                });
+
+                DOM.btnLoadArchive.addEventListener('click', async () => {
+                    const date = DOM.archiveSelect.value;
+                    if (date && date !== 'Choisir une date') {
+                        await loadArchive(date);
+                    }
+                });
+                DOM.btnEditArchive.addEventListener('click', enableEditArchive);
+                DOM.btnRefreshArchives.addEventListener('click', refreshArchiveList);
+                DOM.logFilter.addEventListener('input', () => renderLogs(DOM.logFilter.value));
+
+                DOM.periodSelect.addEventListener('change', () => {
+                    DOM.customDates.style.display = DOM.periodSelect.value === 'custom' ? 'flex' : 'none';
+                });
+                DOM.btnRefreshResume.addEventListener('click', renderResume);
+                DOM.btnApplyCustom.addEventListener('click', renderResume);
+
+                DOM.btnSaveSettings.addEventListener('click', () => {
+                    AppState.stockThreshold = parseFloat(DOM.settingThreshold.value) || 500;
+                    AppState.dailyGoal = parseFloat(DOM.settingDailyGoal.value) || 50000;
+                    AppState.apiKey = DOM.settingApiKey.value;
+                    AppState.autoSaveEnabled = DOM.settingAutoSave.checked;
+                    saveConfig();
+                    showMessage('Configuration sauvegardée', 'success');
+                    renderAll();
+                });
+                DOM.btnFetchRate.addEventListener('click', () => fetchExchangeRate(true));
+            }
+
+            init();
+        })();
+    </script>
+</body>
+</html>
