@@ -11,6 +11,7 @@
             --primary: #ff8c00;
             --primary-light: #ffb347;
             --secondary: #1e90ff;
+            --secondary-light: #4aa3ff;
             --success: #32cd32;
             --warning: #ffa500;
             --danger: #cc3333;
@@ -92,14 +93,14 @@
             display: flex;
         }
 
-        /* Titre d'écran moderne */
+        /* Titre d'écran moderne - réduit à 1.5rem et couleur secondaire */
         .screen-title {
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            color: var(--primary);
+            color: var(--secondary);
             margin-bottom: 0.5rem;
             padding-bottom: 0.5rem;
-            border-bottom: 3px solid var(--primary-light);
+            border-bottom: 3px solid var(--secondary);
             letter-spacing: -0.5px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
@@ -270,7 +271,7 @@
     <!-- Barre supérieure avec titre centré -->
     <div class="app-bar">
         <span class="session-info" id="sessionInfo">Chargement...</span>
-        <span class="app-title">FastDeal</span>
+        <span class="app-title">FastDeal - G</span>
         <span class="rate-info" id="rateInfo">USD/CFA: ...</span>
     </div>
 
@@ -1502,7 +1503,7 @@
             }, false);
 
             function handleSwipe() {
-                const swipeThreshold = 50; // distance minimale en px
+                const swipeThreshold = 50;
                 const diff = touchEndX - touchStartX;
                 if (Math.abs(diff) < swipeThreshold) return;
 
@@ -1512,16 +1513,13 @@
 
                 let newIndex;
                 if (diff > 0) {
-                    // swipe droite -> onglet précédent
                     newIndex = currentIndex - 1;
                 } else {
-                    // swipe gauche -> onglet suivant
                     newIndex = currentIndex + 1;
                 }
 
                 if (newIndex >= 0 && newIndex < screens.length) {
                     const targetScreen = screens[newIndex];
-                    // Simuler un clic sur l'élément de navigation correspondant
                     const navItem = document.querySelector(`.nav-item[data-screen="${targetScreen}"]`);
                     if (navItem) {
                         navItem.click();
@@ -1552,9 +1550,8 @@
                 refreshArchiveList();
                 DOM.sessionInfo.innerText = `Session du ${new Date().toLocaleDateString()}`;
 
-                // Forcer une mise à jour du taux au démarrage
                 fetchExchangeRate(true);
-                setInterval(() => fetchExchangeRate(), 3600000); // toutes les heures
+                setInterval(() => fetchExchangeRate(), 3600000);
 
                 // --- Événements ---
                 DOM.venteQty.addEventListener('blur', function() { if (this.value < 0) this.value = 0; });
@@ -1624,7 +1621,6 @@
 
                 DOM.showAllLots.addEventListener('change', (e) => renderStocks(e.target.checked));
 
-                // Navigation
                 DOM.navItems.forEach(item => {
                     item.addEventListener('click', () => {
                         const screen = item.dataset.screen;
@@ -1645,7 +1641,6 @@
                     });
                 });
 
-                // Archives
                 DOM.btnLoadArchive.addEventListener('click', async () => {
                     const date = DOM.archiveSelect.value;
                     if (date && date !== 'Choisir une date') {
@@ -1656,7 +1651,6 @@
                 DOM.btnRefreshArchives.addEventListener('click', refreshArchiveList);
                 DOM.logFilter.addEventListener('input', () => renderLogs(DOM.logFilter.value));
 
-                // Résumé
                 DOM.periodSelect.addEventListener('change', () => {
                     DOM.customDates.style.display = DOM.periodSelect.value === 'custom' ? 'flex' : 'none';
                     renderResume();
@@ -1664,7 +1658,6 @@
                 DOM.btnRefreshResume.addEventListener('click', renderResume);
                 DOM.btnApplyCustom.addEventListener('click', renderResume);
 
-                // Profil
                 DOM.btnSaveSettings.addEventListener('click', () => {
                     AppState.stockThreshold = parseFloat(DOM.settingThreshold.value) || 500;
                     AppState.dailyGoal = parseFloat(DOM.settingDailyGoal.value) || 50000;
