@@ -92,6 +92,18 @@
             display: flex;
         }
 
+        /* Titre d'écran moderne */
+        .screen-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--primary-light);
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
         /* Cartes */
         .card {
             background-color: var(--card-bg);
@@ -266,6 +278,7 @@
     <div class="screen-container" id="screenContainer">
         <!-- Écran SAISIE -->
         <div id="screenSaisie" class="screen active">
+            <h2 class="screen-title">💰 Vente</h2>
             <div class="card">
                 <div id="stockTotal" class="text-success bold">Stock disponible : 0 $</div>
                 <div id="stockValue" class="text-warning bold">Valeur stock : 0 CFA</div>
@@ -291,6 +304,7 @@
 
         <!-- Écran HISTORIQUE -->
         <div id="screenHistorique" class="screen">
+            <h2 class="screen-title">📋 Historique</h2>
             <div class="flex-row">
                 <input type="text" id="histFilter" placeholder="Filtrer par montant..." style="flex:1;">
                 <button id="btnRefreshHist" class="secondary" style="width:auto;">⟳</button>
@@ -300,8 +314,8 @@
 
         <!-- Écran CALCULS -->
         <div id="screenCalculs" class="screen">
+            <h2 class="screen-title">📊 Résumé session</h2>
             <div class="card">
-                <h3 class="mb-2">Résumé de la session</h3>
                 <div class="grid-2">
                     <span>Total $ vendus :</span><span id="calcTotalDollars" class="bold text-primary">0 $</span>
                     <span>Revenu total :</span><span id="calcTotalCfa" class="bold text-success">0 CFA</span>
@@ -333,8 +347,9 @@
 
         <!-- Écran STOCKS -->
         <div id="screenStocks" class="screen">
+            <h2 class="screen-title">📦 Gestion des stocks</h2>
             <div class="flex-row">
-                <h3 style="flex:1;">Gestion des stocks</h3>
+                <h3 style="flex:1;">Stocks</h3>
                 <button id="btnAddLot">+ Lot</button>
             </div>
             <div class="card">
@@ -355,6 +370,7 @@
 
         <!-- Écran RÉSUMÉ PÉRIODE -->
         <div id="screenResume" class="screen">
+            <h2 class="screen-title">📈 Résumé par période</h2>
             <div class="card">
                 <div class="flex-row mb-2">
                     <select id="periodSelect" style="flex:1;">
@@ -387,8 +403,9 @@
             </div>
         </div>
 
-        <!-- Écran ARCHIVES & LOGS (boutons modifiés) -->
+        <!-- Écran ARCHIVES & LOGS -->
         <div id="screenArchives" class="screen">
+            <h2 class="screen-title">🗂️ Archives & Journal</h2>
             <div class="card">
                 <div class="flex-row">
                     <select id="archiveSelect" style="flex:2;">
@@ -408,8 +425,8 @@
 
         <!-- Écran PROFIL -->
         <div id="screenProfile" class="screen">
+            <h2 class="screen-title">⚙️ Paramètres</h2>
             <div class="card">
-                <h3 class="mb-2">Réglages</h3>
                 <div class="grid-2">
                     <span>Seuil alerte ($) :</span>
                     <input type="number" id="settingThreshold" step="1" min="0">
