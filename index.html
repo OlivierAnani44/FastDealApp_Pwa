@@ -56,16 +56,20 @@
             font-size: 1.5rem;
             font-weight: bold;
             color: var(--primary);
+            text-align: center;
+            flex: 1;
         }
         .session-info {
             font-size: 0.8rem;
             color: var(--text-secondary);
-            text-align: center;
+            text-align: left;
+            flex: 1;
         }
         .rate-info {
             font-size: 0.7rem;
             color: var(--text-muted);
             text-align: right;
+            flex: 1;
         }
 
         /* Conteneur principal des écrans (avec safe area) */
@@ -251,10 +255,10 @@
     </style>
 </head>
 <body>
-    <!-- Barre supérieure -->
+    <!-- Barre supérieure avec titre centré -->
     <div class="app-bar">
-        <span class="app-title">FastDeal</span>
         <span class="session-info" id="sessionInfo">Chargement...</span>
+        <span class="app-title">FastDeal</span>
         <span class="rate-info" id="rateInfo">USD/CFA: ...</span>
     </div>
 
@@ -294,7 +298,7 @@
             <div class="scrollable" id="histList"></div>
         </div>
 
-        <!-- Écran CALCULS (corrigé : espacement du titre) -->
+        <!-- Écran CALCULS -->
         <div id="screenCalculs" class="screen">
             <div class="card">
                 <h3 class="mb-2">Résumé de la session</h3>
@@ -383,7 +387,7 @@
             </div>
         </div>
 
-        <!-- Écran ARCHIVES & LOGS -->
+        <!-- Écran ARCHIVES & LOGS (boutons modifiés) -->
         <div id="screenArchives" class="screen">
             <div class="card">
                 <div class="flex-row">
@@ -391,11 +395,9 @@
                         <option>Choisir une date</option>
                     </select>
                 </div>
-                <div class="flex-row mt-2" style="justify-content: space-between;">
-                    <div class="flex-row" style="gap: 0.5rem;">                        
-                        <button id="btnLoadArchive" class="secondary full-width"> Charger </button>
-                        <button id="btnEditArchive" class="full-width" title="Activer édition"> Modifier </button>
-                    </div>
+                <div class="flex-row mt-2" style="gap: 0.5rem;">
+                    <button id="btnLoadArchive" class="secondary full-width">Charger</button>
+                    <button id="btnEditArchive" class="secondary full-width">✏️ Modifier</button>
                     <button id="btnRefreshArchives" class="secondary full-width">Rafraîchir</button>
                 </div>
             </div>
@@ -555,7 +557,7 @@
 
             // --- Initialisation de la base IndexedDB ---
             const DB_NAME = 'FastDealDB';
-            const DB_VERSION = 2; // Incrémenter pour forcer la mise à jour
+            const DB_VERSION = 2;
             let db = null;
 
             function openDB() {
@@ -570,7 +572,6 @@
                         const db = event.target.result;
                         if (!db.objectStoreNames.contains('dailySessions')) {
                             const sessionStore = db.createObjectStore('dailySessions', { keyPath: 'date' });
-                            // Créer un index sur la date pour les recherches par plage
                             sessionStore.createIndex('date', 'date', { unique: true });
                         }
                         if (!db.objectStoreNames.contains('stockLots')) {
@@ -656,7 +657,7 @@
                 DOM.settingAutoSave.checked = AppState.autoSaveEnabled;
             }
 
-            // --- Export / Import JSON (sauvegarde complète) ---
+            // --- Export / Import JSON ---
             async function exportJSON() {
                 try {
                     const sessionsTx = db.transaction('dailySessions', 'readonly');
@@ -746,7 +747,7 @@
                 reader.readAsText(file);
             }
 
-            // --- Gestion du taux de change avec cache ---
+            // --- Gestion du taux de change avec cache (durée réduite à 1 heure) ---
             function loadCachedRate() {
                 const cached = localStorage.getItem('fastdeal_rate');
                 if (cached) {
@@ -767,10 +768,11 @@
                     updateRateDisplay();
                     return;
                 }
-                if (!force && AppState.cachedRate && (Date.now() - AppState.cachedRate.timestamp) < 24*60*60*1000) {
+                // Si le cache existe et est récent (moins de 1h) et qu'on ne force pas, on l'utilise
+                if (!force && AppState.cachedRate && (Date.now() - AppState.cachedRate.timestamp) < 60*60*1000) {
                     AppState.usdRate = AppState.cachedRate.value;
                     AppState.rateLastUpdate = new Date(AppState.cachedRate.timestamp).toLocaleTimeString();
-                    AppState.rateError = '(caché)';
+                    AppState.rateError = '';
                     updateRateDisplay();
                     return;
                 }
@@ -807,7 +809,7 @@
                 }
             }
 
-            // --- Fonctions métier ---
+            // --- Fonctions métier (inchangées) ---
             function ajouterVente(qty, prixVente) {
                 if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return false; }
                 if (qty <= 0 || prixVente <= 0) { showMessage('Quantité et prix positifs', 'warning'); return false; }
@@ -1226,7 +1228,7 @@
                 });
             }
 
-            // --- RÉSUMÉ PÉRIODE CORRIGÉ (inclut la session courante) ---
+            // --- RÉSUMÉ PÉRIODE (inclut la session courante) ---
             async function renderResume() {
                 if (!db) {
                     console.warn('Base de données pas encore prête');
@@ -1294,7 +1296,6 @@
                 DOM.periodTitle.innerText = `Période : ${period} (${startStr} au ${endStr})`;
 
                 try {
-                    // Utiliser l'index pour une recherche efficace
                     const tx = db.transaction('dailySessions', 'readonly');
                     const store = tx.objectStore('dailySessions');
                     const index = store.index('date');
@@ -1310,7 +1311,6 @@
 
                     let totalD = 0, totalC = 0, totalB = 0;
 
-                    // Ajouter les sessions sauvegardées (sauf la session courante pour éviter double comptage)
                     for (let session of sessions) {
                         if (session.date !== AppState.currentSessionDate) {
                             (session.entries || []).forEach(e => {
@@ -1321,7 +1321,6 @@
                         }
                     }
 
-                    // Ajouter la session courante (en mémoire) si elle est dans la période
                     if (AppState.currentSessionDate >= startStr && AppState.currentSessionDate <= endStr) {
                         AppState.entries.forEach(e => {
                             totalD += e.dollars;
@@ -1330,7 +1329,6 @@
                         });
                     }
 
-                    // Mise à jour de l'affichage
                     DOM.resTotalDollars.innerText = totalD.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' $';
                     DOM.resTotalCfa.innerText = totalC.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
                     DOM.resTotalBenef.innerText = totalB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
@@ -1474,6 +1472,46 @@
                 showMessage('Achat modifié', 'success');
             }
 
+            // --- Gestion du swipe pour navigation ---
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const screenContainer = document.querySelector('.screen-container');
+            screenContainer.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, false);
+            screenContainer.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, false);
+
+            function handleSwipe() {
+                const swipeThreshold = 50; // distance minimale en px
+                const diff = touchEndX - touchStartX;
+                if (Math.abs(diff) < swipeThreshold) return;
+
+                const screens = ['saisie', 'historique', 'calculs', 'stocks', 'resume', 'archives', 'profile'];
+                const currentIndex = screens.indexOf(AppState.currentScreen);
+                if (currentIndex === -1) return;
+
+                let newIndex;
+                if (diff > 0) {
+                    // swipe droite -> onglet précédent
+                    newIndex = currentIndex - 1;
+                } else {
+                    // swipe gauche -> onglet suivant
+                    newIndex = currentIndex + 1;
+                }
+
+                if (newIndex >= 0 && newIndex < screens.length) {
+                    const targetScreen = screens[newIndex];
+                    // Simuler un clic sur l'élément de navigation correspondant
+                    const navItem = document.querySelector(`.nav-item[data-screen="${targetScreen}"]`);
+                    if (navItem) {
+                        navItem.click();
+                    }
+                }
+            }
+
             // --- Initialisation ---
             async function init() {
                 await openDB();
@@ -1497,8 +1535,9 @@
                 refreshArchiveList();
                 DOM.sessionInfo.innerText = `Session du ${new Date().toLocaleDateString()}`;
 
-                fetchExchangeRate();
-                setInterval(() => fetchExchangeRate(), 3600000);
+                // Forcer une mise à jour du taux au démarrage
+                fetchExchangeRate(true);
+                setInterval(() => fetchExchangeRate(), 3600000); // toutes les heures
 
                 // --- Événements ---
                 DOM.venteQty.addEventListener('blur', function() { if (this.value < 0) this.value = 0; });
