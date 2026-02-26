@@ -241,6 +241,13 @@
             height: 1.5rem;
             margin-right: 0.5rem;
         }
+
+        /* Espacement vertical des boutons */
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -301,20 +308,22 @@
                 </div>
             </div>
             <div class="card">
-                <div class="flex-row">
-                    <button id="btnSaveSession" class="secondary">💾 Sauvegarder</button>
-                    <button id="btnRecalc" class="secondary">📊 Recalculer</button>
+                <div class="flex-row" style="gap: 0.75rem;">
+                    <button id="btnSaveSession" class="secondary full-width">💾 Sauvegarder</button>
+                    <button id="btnRecalc" class="secondary full-width">📊 Recalculer</button>
                 </div>
-                <div class="flex-row" style="justify-content: flex-start;">
+                <div class="flex-row" style="justify-content: flex-start; margin-top: 0.75rem;">
                     <input type="checkbox" id="autoSaveCheck" checked>
                     <label>Auto-sauvegarde</label>
                 </div>
-                <div id="saveMessage" class="small"></div>
-                <button id="btnClearAll" class="danger mt-2 full-width">🧹 Effacer toutes les ventes</button>
-                <button id="btnExportCSV" class="secondary mt-2 full-width">📤 Exporter CSV</button>
-                <button id="btnExportJSON" class="secondary mt-2 full-width">📥 Exporter JSON (sauvegarde)</button>
-                <input type="file" id="importJSON" accept=".json" style="display:none;">
-                <button id="btnImportJSON" class="secondary mt-2 full-width">📤 Importer JSON (restauration)</button>
+                <div id="saveMessage" class="small" style="margin-top: 0.5rem;"></div>
+                <div class="button-group" style="margin-top: 1rem;">
+                    <button id="btnClearAll" class="danger full-width">🧹 Effacer toutes les ventes</button>
+                    <button id="btnExportCSV" class="secondary full-width">📤 Exporter CSV</button>
+                    <button id="btnExportJSON" class="secondary full-width">📥 Exporter JSON (sauvegarde)</button>
+                    <input type="file" id="importJSON" accept=".json" style="display:none;">
+                    <button id="btnImportJSON" class="secondary full-width">📤 Importer JSON (restauration)</button>
+                </div>
             </div>
         </div>
 
@@ -407,7 +416,7 @@
                     <span>Clé API taux de change :</span>
                     <input type="text" id="settingApiKey" placeholder="Votre clé">
                 </div>
-                <div class="flex-row" style="justify-content: flex-start;">
+                <div class="flex-row" style="justify-content: flex-start; margin-top: 0.75rem;">
                     <input type="checkbox" id="settingAutoSave" checked>
                     <label>Auto-sauvegarde</label>
                 </div>
@@ -649,19 +658,25 @@
             // --- Export / Import JSON (sauvegarde complète) ---
             async function exportJSON() {
                 try {
+                    // Récupérer toutes les sessions
                     const sessionsTx = db.transaction('dailySessions', 'readonly');
                     const sessionsStore = sessionsTx.objectStore('dailySessions');
                     const sessions = await sessionsStore.getAll();
 
+                    // Récupérer tous les lots
                     const lotsTx = db.transaction('stockLots', 'readonly');
                     const lotsStore = lotsTx.objectStore('stockLots');
                     const lots = await lotsStore.getAll();
+
+                    // Récupérer la configuration (localStorage)
+                    const config = localStorage.getItem('fastdeal_config') || '{}';
 
                     const exportData = {
                         version: '7.8.1',
                         exportDate: new Date().toISOString(),
                         dailySessions: sessions,
                         stockLots: lots,
+                        config: JSON.parse(config)
                     };
                     const json = JSON.stringify(exportData, null, 2);
                     const blob = new Blob([json], { type: 'application/json' });
@@ -704,6 +719,14 @@
 
                         await tx.complete;
 
+                        // Restaurer la configuration si présente
+                        if (data.config) {
+                            localStorage.setItem('fastdeal_config', JSON.stringify(data.config));
+                            // Recharger la config dans l'état
+                            loadConfig();
+                        }
+
+                        // Recharger les données en mémoire
                         await loadStockLots();
                         const today = AppState.currentSessionDate;
                         const session = await loadSession(today);
@@ -1208,7 +1231,7 @@
                 });
             }
 
-            // --- Résumé période (inclut désormais "Hier") ---
+            // --- Résumé période (inclut "Hier") ---
             async function renderResume() {
                 const period = DOM.periodSelect.value;
                 let startDate, endDate;
