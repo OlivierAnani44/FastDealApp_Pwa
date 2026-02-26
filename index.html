@@ -54,12 +54,12 @@
             flex-shrink: 0;
         }
         .app-title {
-            font-size: 1.3rem; /* légèrement réduit */
+            font-size: 1.3rem;
             font-weight: bold;
             color: var(--primary);
             text-align: center;
             flex: 1;
-            white-space: nowrap; /* empêche le retour à la ligne */
+            white-space: nowrap;
         }
         .session-info {
             font-size: 0.8rem;
@@ -94,7 +94,7 @@
             display: flex;
         }
 
-        /* Titre d'écran moderne - réduit à 1.3rem pour correspondre au titre principal */
+        /* Titre d'écran moderne */
         .screen-title {
             font-size: 1.3rem;
             font-weight: 700;
@@ -332,13 +332,14 @@
                     <button id="btnSaveSession" class="secondary full-width">💾 Sauvegarder</button>
                     <button id="btnRecalc" class="secondary full-width">📊 Recalculer</button>
                 </div>
+                <!-- Case auto-sauvegarde dans Calculs, maintenant en lecture seule (affichage de l'état) -->
                 <div class="flex-row" style="justify-content: flex-start; margin-top: 0.75rem;">
-                    <input type="checkbox" id="autoSaveCheck" checked>
-                    <label>Auto-sauvegarde</label>
+                    <input type="checkbox" id="autoSaveCheck" disabled>
+                    <label>Auto-sauvegarde (état depuis Paramètres)</label>
                 </div>
                 <div id="saveMessage" class="small" style="margin-top: 0.5rem;"></div>
                 <div class="button-group" style="margin-top: 1rem;">
-                    <button id="btnClearAll" class="danger full-width">🧹 Effacer toutes les ventes</button>
+                    <button id="btnClearAll" class="danger full-width">🧹 Effacer toutes les ventes (session courante)</button>
                     <button id="btnExportCSV" class="secondary full-width">📤 Exporter CSV</button>
                 </div>
             </div>
@@ -440,10 +441,11 @@
                 </div>
                 <button id="btnSaveSettings" class="secondary full-width mt-2">Sauvegarder</button>
                 <button id="btnFetchRate" class="secondary full-width mt-2">Mettre à jour le taux</button>
-                <!-- Boutons d'export/import JSON déplacés ici -->
                 <button id="btnExportJSON" class="secondary full-width mt-2">📥 Exporter JSON (tout)</button>
                 <input type="file" id="importJSON" accept=".json" style="display:none;">
                 <button id="btnImportJSON" class="secondary full-width mt-2">📤 Importer JSON (restauration)</button>
+                <!-- Nouveau bouton pour effacer toutes les données -->
+                <button id="btnWipeAll" class="danger full-width mt-2">⚠️ Effacer TOUTES les données</button>
                 <div class="small text-muted" style="margin-top:1rem;">Version 7.8.1</div>
             </div>
         </div>
@@ -485,7 +487,6 @@
                 currentScreen: 'saisie',
                 message: { text: '', type: '' },
                 online: navigator.onLine,
-                // Pour éviter les notifications répétées
                 lastStockAlert: false,
             };
 
@@ -540,7 +541,6 @@
                 saveMessage: document.getElementById('saveMessage'),
                 btnClearAll: document.getElementById('btnClearAll'),
                 btnExportCSV: document.getElementById('btnExportCSV'),
-                // Les boutons JSON sont maintenant dans profile
                 btnExportJSON: document.getElementById('btnExportJSON'),
                 btnImportJSON: document.getElementById('btnImportJSON'),
                 importJSON: document.getElementById('importJSON'),
@@ -576,6 +576,7 @@
                 settingAutoSave: document.getElementById('settingAutoSave'),
                 btnSaveSettings: document.getElementById('btnSaveSettings'),
                 btnFetchRate: document.getElementById('btnFetchRate'),
+                btnWipeAll: document.getElementById('btnWipeAll'),
             };
 
             // --- Initialisation de la base IndexedDB ---
@@ -678,24 +679,80 @@
                 DOM.settingDailyGoal.value = AppState.dailyGoal;
                 DOM.settingApiKey.value = AppState.apiKey;
                 DOM.settingAutoSave.checked = AppState.autoSaveEnabled;
+                // Synchroniser la case de l'onglet Calculs (lecture seule)
+                DOM.autoSaveCheck.checked = AppState.autoSaveEnabled;
             }
 
-            // --- Export JSON (toutes les données) ---
+            // --- Effacer toutes les données ---
+            async function wipeAllData() {
+                if (!confirm('⚠️ Êtes-vous sûr de vouloir effacer TOUTES les données ?\nCette action est irréversible.')) return;
+                try {
+                    // Vider tous les stores
+                    const stores = ['dailySessions', 'stockLots'];
+                    for (let storeName of stores) {
+                        const tx = db.transaction(storeName, 'readwrite');
+                        const store = tx.objectStore(storeName);
+                        await store.clear();
+                        await tx.complete;
+                    }
+                    // Remettre la configuration par défaut
+                    AppState.stockThreshold = 500;
+                    AppState.dailyGoal = 50000;
+                    AppState.apiKey = '';
+                    AppState.autoSaveEnabled = true;
+                    await saveConfig();
+                    // Recharger les données
+                    AppState.entries = [];
+                    AppState.stockOperations = [];
+                    AppState.stocks = [];
+                    AppState.actionLogs = [];
+                    AppState.isReadOnly = false;
+                    AppState.currentSessionDate = new Date().toISOString().slice(0,10);
+                    // Recharger l'état
+                    renderAll();
+                    refreshArchiveList();
+                    showMessage('✅ Toutes les données ont été effacées', 'success');
+                } catch (e) {
+                    console.error('Erreur lors du wipe:', e);
+                    showMessage('❌ Erreur lors de l\'effacement', 'error');
+                }
+            }
+
+            // --- Export JSON (toutes les données) --- CORRIGÉ
             async function exportJSON() {
                 try {
-                    // Récupérer toutes les sessions
+                    // 1. Récupérer toutes les sessions depuis IndexedDB
                     const sessionsTx = db.transaction('dailySessions', 'readonly');
                     const sessionsStore = sessionsTx.objectStore('dailySessions');
-                    const sessions = await sessionsStore.getAll();
+                    let sessions = await sessionsStore.getAll();
+                    if (!Array.isArray(sessions)) sessions = [];
 
-                    // Récupérer tous les lots
+                    // 2. Récupérer tous les lots depuis IndexedDB
                     const lotsTx = db.transaction('stockLots', 'readonly');
                     const lotsStore = lotsTx.objectStore('stockLots');
-                    const lots = await lotsStore.getAll();
+                    let lots = await lotsStore.getAll();
+                    if (!Array.isArray(lots)) lots = [];
 
-                    // Récupérer la configuration
+                    // 3. Ajouter la session courante si elle n'est pas déjà dans la base
+                    const todaySessionIndex = sessions.findIndex(s => s.date === AppState.currentSessionDate);
+                    const currentSessionData = {
+                        date: AppState.currentSessionDate,
+                        entries: AppState.entries,
+                        stockOperations: AppState.stockOperations,
+                        actionLogs: AppState.actionLogs
+                    };
+                    if (todaySessionIndex >= 0) {
+                        // Remplacer par la version en mémoire (qui peut avoir des modifications non sauvegardées)
+                        sessions[todaySessionIndex] = currentSessionData;
+                    } else {
+                        // Ajouter la session courante
+                        sessions.push(currentSessionData);
+                    }
+
+                    // 4. Récupérer la configuration
                     const config = localStorage.getItem('fastdeal_config') || '{}';
 
+                    // 5. Construire l'objet d'export
                     const exportData = {
                         version: '7.8.1',
                         exportDate: new Date().toISOString(),
@@ -704,6 +761,7 @@
                         config: JSON.parse(config)
                     };
 
+                    // 6. Télécharger le fichier
                     const json = JSON.stringify(exportData, null, 2);
                     const blob = new Blob([json], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
@@ -714,6 +772,7 @@
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
+                    
                     showMessage('✅ Export JSON réussi', 'success');
                 } catch (e) {
                     console.error('Erreur export JSON:', e);
@@ -727,12 +786,10 @@
                 reader.onload = async (e) => {
                     try {
                         const data = JSON.parse(e.target.result);
-                        // Vérification basique
-                        if (!data.dailySessions || !data.stockLots) {
-                            throw new Error('Format de fichier invalide : pas de dailySessions ou stockLots');
-                        }
+                        // Assurer que ce sont des tableaux
+                        if (!Array.isArray(data.dailySessions)) data.dailySessions = [];
+                        if (!Array.isArray(data.stockLots)) data.stockLots = [];
 
-                        // Transaction pour vider et réinsérer
                         const tx = db.transaction(['dailySessions', 'stockLots'], 'readwrite');
                         const sessionsStore = tx.objectStore('dailySessions');
                         const lotsStore = tx.objectStore('stockLots');
@@ -749,7 +806,6 @@
 
                         await tx.complete;
 
-                        // Restaurer la configuration si présente
                         if (data.config) {
                             localStorage.setItem('fastdeal_config', JSON.stringify(data.config));
                             loadConfig(); // recharge dans l'état
@@ -843,23 +899,20 @@
 
             // --- Notification et son pour stock bas ---
             async function notifyLowStock(currentQty) {
-                // Demander la permission si ce n'est pas déjà fait
                 if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
                     await Notification.requestPermission();
                 }
-                // Jouer un son simple
                 try {
                     const audio = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8'); // son court
                     audio.play();
                 } catch (e) {
                     console.log('Son non joué');
                 }
-                // Afficher une notification
                 if (Notification.permission === 'granted') {
                     new Notification('⚠️ Stock bas FastDeal', {
                         body: `Stock actuel : ${currentQty.toFixed(2)} $ (seuil ${AppState.stockThreshold} $)`,
                         icon: '/icon-192.png',
-                        silent: true, // pas de son supplémentaire
+                        silent: true,
                     });
                 }
             }
@@ -1021,7 +1074,7 @@
             function clearAllSales() {
                 if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return; }
                 if (AppState.entries.length === 0) { showMessage('Aucune vente à effacer', 'info'); return; }
-                if (!confirm('Voulez-vous vraiment effacer toutes les ventes ? (Le stock sera restauré)')) return;
+                if (!confirm('Voulez-vous vraiment effacer toutes les ventes de la session courante ? (Le stock sera restauré)')) return;
                 for (let vente of AppState.entries) {
                     if (vente.preleves) {
                         for (let p of vente.preleves) {
@@ -1092,7 +1145,6 @@
                 const isLow = totalQty < AppState.stockThreshold;
                 if (isLow) {
                     DOM.stockAlert.innerText = `⚠️ Stock bas ! (${totalQty.toFixed(2)} $ < seuil ${AppState.stockThreshold} $)`;
-                    // Déclencher notification si c'est la première fois ou si on repasse en dessous après avoir été au-dessus
                     if (!AppState.lastStockAlert) {
                         AppState.lastStockAlert = true;
                         notifyLowStock(totalQty);
@@ -1622,8 +1674,11 @@
                 });
 
                 DOM.btnRecalc.addEventListener('click', updateCalculs);
-                DOM.autoSaveCheck.addEventListener('change', (e) => {
+                // La case autoSaveCheck est désactivée (lecture seule), donc on ne change pas l'état via elle
+                // Elle est synchronisée via loadConfig() et via les changements de settingAutoSave
+                DOM.settingAutoSave.addEventListener('change', (e) => {
                     AppState.autoSaveEnabled = e.target.checked;
+                    DOM.autoSaveCheck.checked = e.target.checked;
                     saveConfig();
                 });
 
@@ -1644,7 +1699,6 @@
                     URL.revokeObjectURL(url);
                 });
 
-                // Boutons JSON (dans profil)
                 DOM.btnExportJSON.addEventListener('click', exportJSON);
                 DOM.btnImportJSON.addEventListener('click', () => DOM.importJSON.click());
                 DOM.importJSON.addEventListener('change', (e) => {
@@ -1653,6 +1707,9 @@
                     }
                     e.target.value = '';
                 });
+
+                // Bouton Effacer tout
+                DOM.btnWipeAll.addEventListener('click', wipeAllData);
 
                 DOM.btnAddLot.addEventListener('click', () => {
                     const date = prompt('Date (AAAA-MM-JJ)', new Date().toISOString().slice(0,10));
@@ -1707,7 +1764,7 @@
                     AppState.stockThreshold = parseFloat(DOM.settingThreshold.value) || 500;
                     AppState.dailyGoal = parseFloat(DOM.settingDailyGoal.value) || 50000;
                     AppState.apiKey = DOM.settingApiKey.value;
-                    AppState.autoSaveEnabled = DOM.settingAutoSave.checked;
+                    // La case autoSave est déjà gérée par l'événement change
                     saveConfig();
                     showMessage('Configuration sauvegardée', 'success');
                     renderAll();
