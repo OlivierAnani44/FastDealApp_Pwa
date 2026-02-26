@@ -54,11 +54,12 @@
             flex-shrink: 0;
         }
         .app-title {
-            font-size: 1.5rem;
+            font-size: 1.3rem; /* légèrement réduit */
             font-weight: bold;
             color: var(--primary);
             text-align: center;
             flex: 1;
+            white-space: nowrap; /* empêche le retour à la ligne */
         }
         .session-info {
             font-size: 0.8rem;
@@ -93,9 +94,9 @@
             display: flex;
         }
 
-        /* Titre d'écran moderne - réduit à 1.5rem et couleur secondaire */
+        /* Titre d'écran moderne - réduit à 1.3rem pour correspondre au titre principal */
         .screen-title {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: 700;
             color: var(--secondary);
             margin-bottom: 0.5rem;
@@ -339,9 +340,6 @@
                 <div class="button-group" style="margin-top: 1rem;">
                     <button id="btnClearAll" class="danger full-width">🧹 Effacer toutes les ventes</button>
                     <button id="btnExportCSV" class="secondary full-width">📤 Exporter CSV</button>
-                    <button id="btnExportJSON" class="secondary full-width">📥 Exporter JSON (sauvegarde)</button>
-                    <input type="file" id="importJSON" accept=".json" style="display:none;">
-                    <button id="btnImportJSON" class="secondary full-width">📤 Importer JSON (restauration)</button>
                 </div>
             </div>
         </div>
@@ -442,6 +440,10 @@
                 </div>
                 <button id="btnSaveSettings" class="secondary full-width mt-2">Sauvegarder</button>
                 <button id="btnFetchRate" class="secondary full-width mt-2">Mettre à jour le taux</button>
+                <!-- Boutons d'export/import JSON déplacés ici -->
+                <button id="btnExportJSON" class="secondary full-width mt-2">📥 Exporter JSON (tout)</button>
+                <input type="file" id="importJSON" accept=".json" style="display:none;">
+                <button id="btnImportJSON" class="secondary full-width mt-2">📤 Importer JSON (restauration)</button>
                 <div class="small text-muted" style="margin-top:1rem;">Version 7.8.1</div>
             </div>
         </div>
@@ -483,6 +485,8 @@
                 currentScreen: 'saisie',
                 message: { text: '', type: '' },
                 online: navigator.onLine,
+                // Pour éviter les notifications répétées
+                lastStockAlert: false,
             };
 
             // Détection de la connexion
@@ -536,6 +540,7 @@
                 saveMessage: document.getElementById('saveMessage'),
                 btnClearAll: document.getElementById('btnClearAll'),
                 btnExportCSV: document.getElementById('btnExportCSV'),
+                // Les boutons JSON sont maintenant dans profile
                 btnExportJSON: document.getElementById('btnExportJSON'),
                 btnImportJSON: document.getElementById('btnImportJSON'),
                 importJSON: document.getElementById('importJSON'),
@@ -675,17 +680,20 @@
                 DOM.settingAutoSave.checked = AppState.autoSaveEnabled;
             }
 
-            // --- Export / Import JSON ---
+            // --- Export JSON (toutes les données) ---
             async function exportJSON() {
                 try {
+                    // Récupérer toutes les sessions
                     const sessionsTx = db.transaction('dailySessions', 'readonly');
                     const sessionsStore = sessionsTx.objectStore('dailySessions');
                     const sessions = await sessionsStore.getAll();
 
+                    // Récupérer tous les lots
                     const lotsTx = db.transaction('stockLots', 'readonly');
                     const lotsStore = lotsTx.objectStore('stockLots');
                     const lots = await lotsStore.getAll();
 
+                    // Récupérer la configuration
                     const config = localStorage.getItem('fastdeal_config') || '{}';
 
                     const exportData = {
@@ -695,6 +703,7 @@
                         stockLots: lots,
                         config: JSON.parse(config)
                     };
+
                     const json = JSON.stringify(exportData, null, 2);
                     const blob = new Blob([json], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
@@ -712,14 +721,18 @@
                 }
             }
 
+            // --- Import JSON (restauration complète) ---
             async function importJSON(file) {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
                         const data = JSON.parse(e.target.result);
+                        // Vérification basique
                         if (!data.dailySessions || !data.stockLots) {
-                            throw new Error('Format de fichier invalide');
+                            throw new Error('Format de fichier invalide : pas de dailySessions ou stockLots');
                         }
+
+                        // Transaction pour vider et réinsérer
                         const tx = db.transaction(['dailySessions', 'stockLots'], 'readwrite');
                         const sessionsStore = tx.objectStore('dailySessions');
                         const lotsStore = tx.objectStore('stockLots');
@@ -736,11 +749,13 @@
 
                         await tx.complete;
 
+                        // Restaurer la configuration si présente
                         if (data.config) {
                             localStorage.setItem('fastdeal_config', JSON.stringify(data.config));
-                            loadConfig();
+                            loadConfig(); // recharge dans l'état
                         }
 
+                        // Recharger les données en mémoire
                         await loadStockLots();
                         const today = AppState.currentSessionDate;
                         const session = await loadSession(today);
@@ -759,13 +774,13 @@
                         showMessage('✅ Import JSON réussi', 'success');
                     } catch (err) {
                         console.error('Erreur import JSON:', err);
-                        showMessage('❌ Erreur import JSON', 'error');
+                        showMessage('❌ Erreur import JSON : ' + err.message, 'error');
                     }
                 };
                 reader.readAsText(file);
             }
 
-            // --- Gestion du taux de change avec cache (durée réduite à 1 heure) ---
+            // --- Gestion du taux de change avec cache ---
             function loadCachedRate() {
                 const cached = localStorage.getItem('fastdeal_rate');
                 if (cached) {
@@ -786,7 +801,6 @@
                     updateRateDisplay();
                     return;
                 }
-                // Si le cache existe et est récent (moins de 1h) et qu'on ne force pas, on l'utilise
                 if (!force && AppState.cachedRate && (Date.now() - AppState.cachedRate.timestamp) < 60*60*1000) {
                     AppState.usdRate = AppState.cachedRate.value;
                     AppState.rateLastUpdate = new Date(AppState.cachedRate.timestamp).toLocaleTimeString();
@@ -827,7 +841,30 @@
                 }
             }
 
-            // --- Fonctions métier (inchangées) ---
+            // --- Notification et son pour stock bas ---
+            async function notifyLowStock(currentQty) {
+                // Demander la permission si ce n'est pas déjà fait
+                if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                    await Notification.requestPermission();
+                }
+                // Jouer un son simple
+                try {
+                    const audio = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8'); // son court
+                    audio.play();
+                } catch (e) {
+                    console.log('Son non joué');
+                }
+                // Afficher une notification
+                if (Notification.permission === 'granted') {
+                    new Notification('⚠️ Stock bas FastDeal', {
+                        body: `Stock actuel : ${currentQty.toFixed(2)} $ (seuil ${AppState.stockThreshold} $)`,
+                        icon: '/icon-192.png',
+                        silent: true, // pas de son supplémentaire
+                    });
+                }
+            }
+
+            // --- Fonctions métier ---
             function ajouterVente(qty, prixVente) {
                 if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return false; }
                 if (qty <= 0 || prixVente <= 0) { showMessage('Quantité et prix positifs', 'warning'); return false; }
@@ -1052,10 +1089,17 @@
                 const totalValue = AppState.stocks.reduce((s, l) => s + l.remaining * l.price, 0);
                 DOM.stockTotal.innerText = `Stock disponible : ${totalQty.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} $`;
                 DOM.stockValue.innerText = `Valeur stock : ${totalValue.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} CFA`;
-                if (totalQty < AppState.stockThreshold) {
+                const isLow = totalQty < AppState.stockThreshold;
+                if (isLow) {
                     DOM.stockAlert.innerText = `⚠️ Stock bas ! (${totalQty.toFixed(2)} $ < seuil ${AppState.stockThreshold} $)`;
+                    // Déclencher notification si c'est la première fois ou si on repasse en dessous après avoir été au-dessus
+                    if (!AppState.lastStockAlert) {
+                        AppState.lastStockAlert = true;
+                        notifyLowStock(totalQty);
+                    }
                 } else {
                     DOM.stockAlert.innerText = '';
+                    AppState.lastStockAlert = false;
                 }
                 DOM.thresholdDisplay.innerText = `${AppState.stockThreshold} $`;
             }
@@ -1246,7 +1290,7 @@
                 });
             }
 
-            // --- RÉSUMÉ PÉRIODE (inclut la session courante) ---
+            // --- RÉSUMÉ PÉRIODE ---
             async function renderResume() {
                 if (!db) {
                     console.warn('Base de données pas encore prête');
@@ -1600,6 +1644,7 @@
                     URL.revokeObjectURL(url);
                 });
 
+                // Boutons JSON (dans profil)
                 DOM.btnExportJSON.addEventListener('click', exportJSON);
                 DOM.btnImportJSON.addEventListener('click', () => DOM.importJSON.click());
                 DOM.importJSON.addEventListener('change', (e) => {
