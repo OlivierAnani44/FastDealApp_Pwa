@@ -346,6 +346,7 @@
                 <div class="flex-row mb-2">
                     <select id="periodSelect" style="flex:1;">
                         <option value="today">Aujourd'hui</option>
+                        <option value="yesterday">Hier</option>
                         <option value="week" selected>Semaine en cours</option>
                         <option value="prevWeek">Semaine précédente</option>
                         <option value="month">Mois en cours</option>
@@ -465,7 +466,7 @@
                 showMessage('📴 Mode hors ligne', 'offline');
             });
 
-            // --- Références DOM (inchangées) ---
+            // --- Références DOM ---
             const DOM = {
                 sessionInfo: document.getElementById('sessionInfo'),
                 rateInfo: document.getElementById('rateInfo'),
@@ -648,8 +649,14 @@
             // --- Export / Import JSON (sauvegarde complète) ---
             async function exportJSON() {
                 try {
-                    const sessions = await db.transaction('dailySessions').store.getAll();
-                    const lots = await db.transaction('stockLots').store.getAll();
+                    const sessionsTx = db.transaction('dailySessions', 'readonly');
+                    const sessionsStore = sessionsTx.objectStore('dailySessions');
+                    const sessions = await sessionsStore.getAll();
+
+                    const lotsTx = db.transaction('stockLots', 'readonly');
+                    const lotsStore = lotsTx.objectStore('stockLots');
+                    const lots = await lotsStore.getAll();
+
                     const exportData = {
                         version: '7.8.1',
                         exportDate: new Date().toISOString(),
@@ -668,6 +675,7 @@
                     URL.revokeObjectURL(url);
                     showMessage('✅ Export JSON réussi', 'success');
                 } catch (e) {
+                    console.error('Erreur export JSON:', e);
                     showMessage('❌ Erreur export JSON', 'error');
                 }
             }
@@ -677,25 +685,26 @@
                 reader.onload = async (e) => {
                     try {
                         const data = JSON.parse(e.target.result);
-                        // Vérification basique
                         if (!data.dailySessions || !data.stockLots) {
                             throw new Error('Format de fichier invalide');
                         }
                         const tx = db.transaction(['dailySessions', 'stockLots'], 'readwrite');
-                        // Vider les stores
-                        await tx.objectStore('dailySessions').clear();
-                        await tx.objectStore('stockLots').clear();
-                        // Réinsérer
+                        const sessionsStore = tx.objectStore('dailySessions');
+                        const lotsStore = tx.objectStore('stockLots');
+
+                        await sessionsStore.clear();
+                        await lotsStore.clear();
+
                         for (let session of data.dailySessions) {
-                            await tx.objectStore('dailySessions').put(session);
+                            await sessionsStore.put(session);
                         }
                         for (let lot of data.stockLots) {
-                            await tx.objectStore('stockLots').put(lot);
+                            await lotsStore.put(lot);
                         }
+
                         await tx.complete;
-                        // Recharger les données en mémoire
+
                         await loadStockLots();
-                        // Recharger la session courante
                         const today = AppState.currentSessionDate;
                         const session = await loadSession(today);
                         if (session) {
@@ -707,17 +716,19 @@
                             AppState.stockOperations = [];
                             AppState.actionLogs = [];
                         }
+
                         renderAll();
                         refreshArchiveList();
                         showMessage('✅ Import JSON réussi', 'success');
                     } catch (err) {
+                        console.error('Erreur import JSON:', err);
                         showMessage('❌ Erreur import JSON', 'error');
                     }
                 };
                 reader.readAsText(file);
             }
 
-            // --- Gestion du taux de change avec cache (inchangée) ---
+            // --- Gestion du taux de change avec cache ---
             function loadCachedRate() {
                 const cached = localStorage.getItem('fastdeal_rate');
                 if (cached) {
@@ -778,7 +789,7 @@
                 }
             }
 
-            // --- Fonctions métier (inchangées) ---
+            // --- Fonctions métier ---
             function ajouterVente(qty, prixVente) {
                 if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return false; }
                 if (qty <= 0 || prixVente <= 0) { showMessage('Quantité et prix positifs', 'warning'); return false; }
@@ -952,7 +963,7 @@
                 showMessage('Toutes les ventes ont été effacées', 'success');
             }
 
-            // --- Calculs et affichage (inchangés) ---
+            // --- Calculs et affichage ---
             function updateCalculs() {
                 const totalD = AppState.entries.reduce((s, e) => s + e.dollars, 0);
                 const totalC = AppState.entries.reduce((s, e) => s + e.dollars * e.prix, 0);
@@ -1197,7 +1208,7 @@
                 });
             }
 
-            // --- Résumé période (corrigé) ---
+            // --- Résumé période (inclut désormais "Hier") ---
             async function renderResume() {
                 const period = DOM.periodSelect.value;
                 let startDate, endDate;
@@ -1214,6 +1225,11 @@
                 if (period === 'today') {
                     startDate = new Date(today);
                     endDate = new Date(today);
+                } else if (period === 'yesterday') {
+                    startDate = new Date(today);
+                    startDate.setDate(today.getDate() - 1);
+                    endDate = new Date(today);
+                    endDate.setDate(today.getDate() - 1);
                 } else if (period === 'week') {
                     const dayOfWeek = today.getDay(); // 0 = dimanche
                     const diffToMonday = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
@@ -1494,15 +1510,13 @@
                     URL.revokeObjectURL(url);
                 });
 
-                // Export JSON
                 DOM.btnExportJSON.addEventListener('click', exportJSON);
-                // Import JSON
                 DOM.btnImportJSON.addEventListener('click', () => DOM.importJSON.click());
                 DOM.importJSON.addEventListener('change', (e) => {
                     if (e.target.files.length > 0) {
                         importJSON(e.target.files[0]);
                     }
-                    e.target.value = ''; // pour permettre de re-sélectionner le même fichier
+                    e.target.value = '';
                 });
 
                 DOM.btnAddLot.addEventListener('click', () => {
