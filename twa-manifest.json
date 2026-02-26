@@ -1,0 +1,11 @@
+{
+  "packageId": "com.fastdeal.app",
+  "host": "https://olivieranani44.github.io",
+  "name": "FastDeal - Gestion de stock FIFO",
+  "launcherName": "FastDeal",
+  "startUrl": "/index.html",
+  "display": "standalone",
+  "iconUrl": "icon-512.png",
+  "themeColor": "#ff8c00",
+  "backgroundColor": "#121212"
+}
