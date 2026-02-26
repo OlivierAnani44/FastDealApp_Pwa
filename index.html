@@ -555,7 +555,7 @@
 
             // --- Initialisation de la base IndexedDB ---
             const DB_NAME = 'FastDealDB';
-            const DB_VERSION = 1;
+            const DB_VERSION = 2; // Incrémenter pour forcer la mise à jour
             let db = null;
 
             function openDB() {
@@ -570,6 +570,7 @@
                         const db = event.target.result;
                         if (!db.objectStoreNames.contains('dailySessions')) {
                             const sessionStore = db.createObjectStore('dailySessions', { keyPath: 'date' });
+                            // Créer un index sur la date pour les recherches par plage
                             sessionStore.createIndex('date', 'date', { unique: true });
                         }
                         if (!db.objectStoreNames.contains('stockLots')) {
@@ -658,17 +659,14 @@
             // --- Export / Import JSON (sauvegarde complète) ---
             async function exportJSON() {
                 try {
-                    // Récupérer toutes les sessions
                     const sessionsTx = db.transaction('dailySessions', 'readonly');
                     const sessionsStore = sessionsTx.objectStore('dailySessions');
                     const sessions = await sessionsStore.getAll();
 
-                    // Récupérer tous les lots
                     const lotsTx = db.transaction('stockLots', 'readonly');
                     const lotsStore = lotsTx.objectStore('stockLots');
                     const lots = await lotsStore.getAll();
 
-                    // Récupérer la configuration (localStorage)
                     const config = localStorage.getItem('fastdeal_config') || '{}';
 
                     const exportData = {
@@ -719,14 +717,11 @@
 
                         await tx.complete;
 
-                        // Restaurer la configuration si présente
                         if (data.config) {
                             localStorage.setItem('fastdeal_config', JSON.stringify(data.config));
-                            // Recharger la config dans l'état
                             loadConfig();
                         }
 
-                        // Recharger les données en mémoire
                         await loadStockLots();
                         const today = AppState.currentSessionDate;
                         const session = await loadSession(today);
@@ -1231,8 +1226,13 @@
                 });
             }
 
-            // --- Résumé période (inclut "Hier") ---
+            // --- RÉSUMÉ PÉRIODE CORRIGÉ (inclut la session courante) ---
             async function renderResume() {
+                if (!db) {
+                    console.warn('Base de données pas encore prête');
+                    return;
+                }
+
                 const period = DOM.periodSelect.value;
                 let startDate, endDate;
                 const today = new Date();
@@ -1254,7 +1254,7 @@
                     endDate = new Date(today);
                     endDate.setDate(today.getDate() - 1);
                 } else if (period === 'week') {
-                    const dayOfWeek = today.getDay(); // 0 = dimanche
+                    const dayOfWeek = today.getDay();
                     const diffToMonday = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
                     startDate = new Date(today);
                     startDate.setDate(today.getDate() - diffToMonday);
@@ -1293,43 +1293,57 @@
                 const endStr = toLocalDateStr(endDate);
                 DOM.periodTitle.innerText = `Période : ${period} (${startStr} au ${endStr})`;
 
-                const tx = db.transaction('dailySessions', 'readonly');
-                const store = tx.objectStore('dailySessions');
-                const all = await store.getAll();
+                try {
+                    // Utiliser l'index pour une recherche efficace
+                    const tx = db.transaction('dailySessions', 'readonly');
+                    const store = tx.objectStore('dailySessions');
+                    const index = store.index('date');
+                    const range = IDBKeyRange.bound(startStr, endStr, false, false);
+                    
+                    const sessions = await new Promise((resolve, reject) => {
+                        const request = index.getAll(range);
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error);
+                    });
 
-                const sessionsMap = {};
-                all.forEach(s => { sessionsMap[s.date] = s; });
+                    await tx.complete;
 
-                let totalD = 0, totalC = 0, totalB = 0;
+                    let totalD = 0, totalC = 0, totalB = 0;
 
-                for (let date in sessionsMap) {
-                    if (date >= startStr && date <= endStr && date !== AppState.currentSessionDate) {
-                        const session = sessionsMap[date];
-                        (session.entries || []).forEach(e => {
+                    // Ajouter les sessions sauvegardées (sauf la session courante pour éviter double comptage)
+                    for (let session of sessions) {
+                        if (session.date !== AppState.currentSessionDate) {
+                            (session.entries || []).forEach(e => {
+                                totalD += e.dollars;
+                                totalC += e.dollars * e.prix;
+                                totalB += e.benef;
+                            });
+                        }
+                    }
+
+                    // Ajouter la session courante (en mémoire) si elle est dans la période
+                    if (AppState.currentSessionDate >= startStr && AppState.currentSessionDate <= endStr) {
+                        AppState.entries.forEach(e => {
                             totalD += e.dollars;
                             totalC += e.dollars * e.prix;
                             totalB += e.benef;
                         });
                     }
-                }
 
-                if (AppState.currentSessionDate >= startStr && AppState.currentSessionDate <= endStr) {
-                    AppState.entries.forEach(e => {
-                        totalD += e.dollars;
-                        totalC += e.dollars * e.prix;
-                        totalB += e.benef;
-                    });
+                    // Mise à jour de l'affichage
+                    DOM.resTotalDollars.innerText = totalD.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' $';
+                    DOM.resTotalCfa.innerText = totalC.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
+                    DOM.resTotalBenef.innerText = totalB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
+                    const avgP = totalD ? totalC / totalD : 0;
+                    const avgB = totalD ? totalB / totalD : 0;
+                    const margin = totalC ? (totalB / totalC * 100) : 0;
+                    DOM.resAvgPrice.innerText = avgP.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
+                    DOM.resAvgBenef.innerText = avgB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
+                    DOM.resMargin.innerText = margin.toFixed(2) + ' %';
+                } catch (error) {
+                    console.error('Erreur dans renderResume:', error);
+                    showMessage('❌ Erreur lors du calcul du résumé', 'error');
                 }
-
-                DOM.resTotalDollars.innerText = totalD.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' $';
-                DOM.resTotalCfa.innerText = totalC.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
-                DOM.resTotalBenef.innerText = totalB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA';
-                const avgP = totalD ? totalC / totalD : 0;
-                const avgB = totalD ? totalB / totalD : 0;
-                const margin = totalC ? (totalB / totalC * 100) : 0;
-                DOM.resAvgPrice.innerText = avgP.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
-                DOM.resAvgBenef.innerText = avgB.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' CFA/$';
-                DOM.resMargin.innerText = margin.toFixed(2) + ' %';
             }
 
             async function refreshArchiveList() {
