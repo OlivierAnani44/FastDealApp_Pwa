@@ -332,7 +332,6 @@
                     <button id="btnSaveSession" class="secondary full-width">💾 Sauvegarder</button>
                     <button id="btnRecalc" class="secondary full-width">📊 Recalculer</button>
                 </div>
-                <!-- Case auto-sauvegarde dans Calculs, maintenant en lecture seule (affichage de l'état) -->
                 <div class="flex-row" style="justify-content: flex-start; margin-top: 0.75rem;">
                     <input type="checkbox" id="autoSaveCheck" disabled>
                     <label>Auto-sauvegarde (état depuis Paramètres)</label>
@@ -439,12 +438,19 @@
                     <input type="checkbox" id="settingAutoSave" checked>
                     <label>Auto-sauvegarde</label>
                 </div>
+                <div class="flex-row" style="justify-content: flex-start; margin-top: 0.5rem;">
+                    <input type="checkbox" id="settingDailyBackup" checked>
+                    <label>Sauvegarde automatique quotidienne (23h30)</label>
+                </div>
+                <div class="flex-row" style="justify-content: flex-start; margin-top: 0.5rem;">
+                    <input type="checkbox" id="settingNotifications" checked>
+                    <label>Activer les notifications</label>
+                </div>
                 <button id="btnSaveSettings" class="secondary full-width mt-2">Sauvegarder</button>
                 <button id="btnFetchRate" class="secondary full-width mt-2">Mettre à jour le taux</button>
                 <button id="btnExportJSON" class="secondary full-width mt-2">📥 Exporter JSON (tout)</button>
                 <input type="file" id="importJSON" accept=".json" style="display:none;">
                 <button id="btnImportJSON" class="secondary full-width mt-2">📤 Importer JSON (restauration)</button>
-                <!-- Nouveau bouton pour effacer toutes les données -->
                 <button id="btnWipeAll" class="danger full-width mt-2">⚠️ Effacer TOUTES les données</button>
                 <div class="small text-muted" style="margin-top:1rem;">Version 7.8.1</div>
             </div>
@@ -477,6 +483,8 @@
                     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 })(),
                 autoSaveEnabled: true,
+                dailyBackupEnabled: true,
+                notificationsEnabled: true,
                 stockThreshold: 500,
                 dailyGoal: 50000,
                 apiKey: '',
@@ -488,6 +496,7 @@
                 message: { text: '', type: '' },
                 online: navigator.onLine,
                 lastStockAlert: false,
+                backupTimerId: null,
             };
 
             // Détection de la connexion
@@ -574,6 +583,8 @@
                 settingDailyGoal: document.getElementById('settingDailyGoal'),
                 settingApiKey: document.getElementById('settingApiKey'),
                 settingAutoSave: document.getElementById('settingAutoSave'),
+                settingDailyBackup: document.getElementById('settingDailyBackup'),
+                settingNotifications: document.getElementById('settingNotifications'),
                 btnSaveSettings: document.getElementById('btnSaveSettings'),
                 btnFetchRate: document.getElementById('btnFetchRate'),
                 btnWipeAll: document.getElementById('btnWipeAll'),
@@ -581,7 +592,7 @@
 
             // --- Initialisation de la base IndexedDB ---
             const DB_NAME = 'FastDealDB';
-            const DB_VERSION = 2;
+            const DB_VERSION = 3; // Incrémenté pour ajouter le store backups
             let db = null;
 
             function openDB() {
@@ -603,6 +614,9 @@
                         }
                         if (!db.objectStoreNames.contains('config')) {
                             db.createObjectStore('config');
+                        }
+                        if (!db.objectStoreNames.contains('backups')) {
+                            db.createObjectStore('backups', { keyPath: 'timestamp' });
                         }
                     };
                 });
@@ -659,6 +673,8 @@
                 localStorage.setItem('fastdeal_config', JSON.stringify({
                     stockThreshold: AppState.stockThreshold,
                     autoSaveEnabled: AppState.autoSaveEnabled,
+                    dailyBackupEnabled: AppState.dailyBackupEnabled,
+                    notificationsEnabled: AppState.notificationsEnabled,
                     dailyGoal: AppState.dailyGoal,
                     apiKey: AppState.apiKey,
                 }));
@@ -671,6 +687,8 @@
                         const parsed = JSON.parse(cfg);
                         AppState.stockThreshold = parsed.stockThreshold || 500;
                         AppState.autoSaveEnabled = parsed.autoSaveEnabled !== undefined ? parsed.autoSaveEnabled : true;
+                        AppState.dailyBackupEnabled = parsed.dailyBackupEnabled !== undefined ? parsed.dailyBackupEnabled : true;
+                        AppState.notificationsEnabled = parsed.notificationsEnabled !== undefined ? parsed.notificationsEnabled : true;
                         AppState.dailyGoal = parsed.dailyGoal || 50000;
                         AppState.apiKey = parsed.apiKey || '';
                     } catch (e) {}
@@ -679,36 +697,150 @@
                 DOM.settingDailyGoal.value = AppState.dailyGoal;
                 DOM.settingApiKey.value = AppState.apiKey;
                 DOM.settingAutoSave.checked = AppState.autoSaveEnabled;
-                // Synchroniser la case de l'onglet Calculs (lecture seule)
+                DOM.settingDailyBackup.checked = AppState.dailyBackupEnabled;
+                DOM.settingNotifications.checked = AppState.notificationsEnabled;
                 DOM.autoSaveCheck.checked = AppState.autoSaveEnabled;
+            }
+
+            // --- Fonction pour demander la permission de notification ---
+            async function requestNotificationPermission() {
+                if (!AppState.notificationsEnabled) return;
+                if (Notification.permission === 'default') {
+                    await Notification.requestPermission();
+                }
+            }
+
+            // --- Fonction pour envoyer une notification (si activée) ---
+            function sendNotification(title, body) {
+                if (!AppState.notificationsEnabled) return;
+                if (Notification.permission === 'granted') {
+                    new Notification(title, { body, icon: '/icon-192.png' });
+                }
+            }
+
+            // --- Fonction de sauvegarde automatique quotidienne (23h30) ---
+            async function performDailyBackup() {
+                if (!AppState.dailyBackupEnabled) return;
+
+                try {
+                    // Récupérer les données (comme exportJSON)
+                    const sessionsTx = db.transaction('dailySessions', 'readonly');
+                    const sessionsStore = sessionsTx.objectStore('dailySessions');
+                    let sessions = await sessionsStore.getAll();
+                    if (!Array.isArray(sessions)) sessions = [];
+
+                    const lotsTx = db.transaction('stockLots', 'readonly');
+                    const lotsStore = lotsTx.objectStore('stockLots');
+                    let lots = await lotsStore.getAll();
+                    if (!Array.isArray(lots)) lots = [];
+
+                    // Fusion avec les données en mémoire (sessions et lots)
+                    const todaySessionIndex = sessions.findIndex(s => s.date === AppState.currentSessionDate);
+                    const currentSessionData = {
+                        date: AppState.currentSessionDate,
+                        entries: AppState.entries,
+                        stockOperations: AppState.stockOperations,
+                        actionLogs: AppState.actionLogs
+                    };
+                    if (todaySessionIndex >= 0) {
+                        sessions[todaySessionIndex] = currentSessionData;
+                    } else {
+                        sessions.push(currentSessionData);
+                    }
+
+                    // Fusion des lots : remplacer ceux qui existent déjà par ceux en mémoire
+                    const lotMap = new Map();
+                    for (let lot of lots) lotMap.set(lot.lot_id, lot);
+                    for (let lot of AppState.stocks) lotMap.set(lot.lot_id, lot);
+                    const mergedLots = Array.from(lotMap.values());
+
+                    const config = localStorage.getItem('fastdeal_config') || '{}';
+
+                    const backupData = {
+                        version: '7.8.1',
+                        backupDate: new Date().toISOString(),
+                        dailySessions: sessions,
+                        stockLots: mergedLots,
+                        config: JSON.parse(config)
+                    };
+
+                    // Sauvegarder dans IndexedDB (store backups)
+                    const backupTx = db.transaction('backups', 'readwrite');
+                    const backupStore = backupTx.objectStore('backups');
+                    await backupStore.put({
+                        timestamp: new Date().toISOString(),
+                        data: backupData
+                    });
+                    await backupTx.complete;
+
+                    // Télécharger le fichier (tentative)
+                    try {
+                        const json = JSON.stringify(backupData, null, 2);
+                        const blob = new Blob([json], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `fastdeal_auto_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        sendNotification('FastDeal - Sauvegarde quotidienne', 'Sauvegarde automatique effectuée et téléchargée à 23h30');
+                    } catch (dlError) {
+                        console.log('Téléchargement automatique bloqué, sauvegarde conservée en base');
+                        sendNotification('FastDeal - Sauvegarde quotidienne', 'Sauvegarde effectuée (enregistrée en interne)');
+                    }
+
+                    console.log('Sauvegarde quotidienne effectuée à', new Date().toLocaleTimeString());
+                } catch (e) {
+                    console.error('Erreur sauvegarde quotidienne:', e);
+                }
+            }
+
+            // --- Planification de la sauvegarde quotidienne à 23h30 ---
+            function scheduleDailyBackup() {
+                if (AppState.backupTimerId) {
+                    clearInterval(AppState.backupTimerId);
+                }
+
+                if (!AppState.dailyBackupEnabled) return;
+
+                // Vérifier toutes les minutes
+                AppState.backupTimerId = setInterval(() => {
+                    const now = new Date();
+                    const hours = now.getHours();
+                    const minutes = now.getMinutes();
+
+                    if (hours === 23 && minutes === 30) {
+                        performDailyBackup();
+                    }
+                }, 60000);
             }
 
             // --- Effacer toutes les données ---
             async function wipeAllData() {
                 if (!confirm('⚠️ Êtes-vous sûr de vouloir effacer TOUTES les données ?\nCette action est irréversible.')) return;
                 try {
-                    // Vider tous les stores
-                    const stores = ['dailySessions', 'stockLots'];
+                    const stores = ['dailySessions', 'stockLots', 'backups'];
                     for (let storeName of stores) {
                         const tx = db.transaction(storeName, 'readwrite');
                         const store = tx.objectStore(storeName);
                         await store.clear();
                         await tx.complete;
                     }
-                    // Remettre la configuration par défaut
                     AppState.stockThreshold = 500;
                     AppState.dailyGoal = 50000;
                     AppState.apiKey = '';
                     AppState.autoSaveEnabled = true;
+                    AppState.dailyBackupEnabled = true;
+                    AppState.notificationsEnabled = true;
                     await saveConfig();
-                    // Recharger les données
                     AppState.entries = [];
                     AppState.stockOperations = [];
                     AppState.stocks = [];
                     AppState.actionLogs = [];
                     AppState.isReadOnly = false;
                     AppState.currentSessionDate = new Date().toISOString().slice(0,10);
-                    // Recharger l'état
                     renderAll();
                     refreshArchiveList();
                     showMessage('✅ Toutes les données ont été effacées', 'success');
@@ -718,22 +850,20 @@
                 }
             }
 
-            // --- Export JSON (toutes les données) --- CORRIGÉ
+            // --- Export JSON (toutes les données) ---
             async function exportJSON() {
                 try {
-                    // 1. Récupérer toutes les sessions depuis IndexedDB
                     const sessionsTx = db.transaction('dailySessions', 'readonly');
                     const sessionsStore = sessionsTx.objectStore('dailySessions');
                     let sessions = await sessionsStore.getAll();
                     if (!Array.isArray(sessions)) sessions = [];
 
-                    // 2. Récupérer tous les lots depuis IndexedDB
                     const lotsTx = db.transaction('stockLots', 'readonly');
                     const lotsStore = lotsTx.objectStore('stockLots');
                     let lots = await lotsStore.getAll();
                     if (!Array.isArray(lots)) lots = [];
 
-                    // 3. Ajouter la session courante si elle n'est pas déjà dans la base
+                    // Fusion avec la session courante
                     const todaySessionIndex = sessions.findIndex(s => s.date === AppState.currentSessionDate);
                     const currentSessionData = {
                         date: AppState.currentSessionDate,
@@ -742,26 +872,27 @@
                         actionLogs: AppState.actionLogs
                     };
                     if (todaySessionIndex >= 0) {
-                        // Remplacer par la version en mémoire (qui peut avoir des modifications non sauvegardées)
                         sessions[todaySessionIndex] = currentSessionData;
                     } else {
-                        // Ajouter la session courante
                         sessions.push(currentSessionData);
                     }
 
-                    // 4. Récupérer la configuration
+                    // Fusion des lots : remplacer ceux qui existent déjà par ceux en mémoire
+                    const lotMap = new Map();
+                    for (let lot of lots) lotMap.set(lot.lot_id, lot);
+                    for (let lot of AppState.stocks) lotMap.set(lot.lot_id, lot);
+                    const mergedLots = Array.from(lotMap.values());
+
                     const config = localStorage.getItem('fastdeal_config') || '{}';
 
-                    // 5. Construire l'objet d'export
                     const exportData = {
                         version: '7.8.1',
                         exportDate: new Date().toISOString(),
                         dailySessions: sessions,
-                        stockLots: lots,
+                        stockLots: mergedLots,
                         config: JSON.parse(config)
                     };
 
-                    // 6. Télécharger le fichier
                     const json = JSON.stringify(exportData, null, 2);
                     const blob = new Blob([json], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
@@ -786,7 +917,6 @@
                 reader.onload = async (e) => {
                     try {
                         const data = JSON.parse(e.target.result);
-                        // Assurer que ce sont des tableaux
                         if (!Array.isArray(data.dailySessions)) data.dailySessions = [];
                         if (!Array.isArray(data.stockLots)) data.stockLots = [];
 
@@ -808,10 +938,9 @@
 
                         if (data.config) {
                             localStorage.setItem('fastdeal_config', JSON.stringify(data.config));
-                            loadConfig(); // recharge dans l'état
+                            loadConfig();
                         }
 
-                        // Recharger les données en mémoire
                         await loadStockLots();
                         const today = AppState.currentSessionDate;
                         const session = await loadSession(today);
@@ -899,11 +1028,12 @@
 
             // --- Notification et son pour stock bas ---
             async function notifyLowStock(currentQty) {
+                if (!AppState.notificationsEnabled) return;
                 if (Notification.permission !== 'granted' && Notification.permission !== 'denied') {
                     await Notification.requestPermission();
                 }
                 try {
-                    const audio = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8'); // son court
+                    const audio = new Audio('data:audio/wav;base64,UklGRlwAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVAAAAA8');
                     audio.play();
                 } catch (e) {
                     console.log('Son non joué');
@@ -917,7 +1047,7 @@
                 }
             }
 
-            // --- Fonctions métier ---
+            // --- Fonctions métier (ajouterVente, ajouterLotAchat, etc.) ---
             function ajouterVente(qty, prixVente) {
                 if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return false; }
                 if (qty <= 0 || prixVente <= 0) { showMessage('Quantité et prix positifs', 'warning'); return false; }
@@ -1342,7 +1472,6 @@
                 });
             }
 
-            // --- RÉSUMÉ PÉRIODE ---
             async function renderResume() {
                 if (!db) {
                     console.warn('Base de données pas encore prête');
@@ -1649,6 +1778,14 @@
                 fetchExchangeRate(true);
                 setInterval(() => fetchExchangeRate(), 3600000);
 
+                // Demander la permission de notification au démarrage si activée
+                if (AppState.notificationsEnabled) {
+                    requestNotificationPermission();
+                }
+
+                // Planifier la sauvegarde quotidienne
+                scheduleDailyBackup();
+
                 // --- Événements ---
                 DOM.venteQty.addEventListener('blur', function() { if (this.value < 0) this.value = 0; });
                 DOM.ventePrix.addEventListener('blur', function() { if (this.value < 0) this.value = 0; });
@@ -1674,11 +1811,24 @@
                 });
 
                 DOM.btnRecalc.addEventListener('click', updateCalculs);
-                // La case autoSaveCheck est désactivée (lecture seule), donc on ne change pas l'état via elle
-                // Elle est synchronisée via loadConfig() et via les changements de settingAutoSave
+                
                 DOM.settingAutoSave.addEventListener('change', (e) => {
                     AppState.autoSaveEnabled = e.target.checked;
                     DOM.autoSaveCheck.checked = e.target.checked;
+                    saveConfig();
+                });
+
+                DOM.settingDailyBackup.addEventListener('change', (e) => {
+                    AppState.dailyBackupEnabled = e.target.checked;
+                    saveConfig();
+                    scheduleDailyBackup();
+                });
+
+                DOM.settingNotifications.addEventListener('change', (e) => {
+                    AppState.notificationsEnabled = e.target.checked;
+                    if (e.target.checked && Notification.permission === 'default') {
+                        Notification.requestPermission();
+                    }
                     saveConfig();
                 });
 
@@ -1708,7 +1858,6 @@
                     e.target.value = '';
                 });
 
-                // Bouton Effacer tout
                 DOM.btnWipeAll.addEventListener('click', wipeAllData);
 
                 DOM.btnAddLot.addEventListener('click', () => {
@@ -1764,7 +1913,6 @@
                     AppState.stockThreshold = parseFloat(DOM.settingThreshold.value) || 500;
                     AppState.dailyGoal = parseFloat(DOM.settingDailyGoal.value) || 50000;
                     AppState.apiKey = DOM.settingApiKey.value;
-                    // La case autoSave est déjà gérée par l'événement change
                     saveConfig();
                     showMessage('Configuration sauvegardée', 'success');
                     renderAll();
