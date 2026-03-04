@@ -43,7 +43,7 @@
             flex-direction: column;
         }
 
-        /* En-tête */
+        /* En-tête avec sélecteur de date */
         .app-bar {
             background-color: var(--bg-light);
             padding: 0.75rem 1rem;
@@ -52,26 +52,46 @@
             justify-content: space-between;
             box-shadow: 0 2px 8px rgba(0,0,0,0.5);
             flex-shrink: 0;
-        }
-        .app-title {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: var(--primary);
-            text-align: center;
-            flex: 1;
-            white-space: nowrap;
+            gap: 8px;
         }
         .session-info {
             font-size: 0.8rem;
             color: var(--text-secondary);
             text-align: left;
             flex: 1;
+            white-space: nowrap;
         }
         .rate-info {
             font-size: 0.7rem;
             color: var(--text-muted);
             text-align: right;
             flex: 1;
+            white-space: nowrap;
+        }
+        .date-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 2;
+            justify-content: center;
+        }
+        .date-selector input[type="date"] {
+            font-size: 0.95rem;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: var(--bg-light);
+            color: white;
+            border: 1px solid #444;
+            width: auto;
+            max-width: 160px;
+        }
+        .date-selector button {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            background-color: var(--secondary);
+        }
+        .app-title {
+            display: none; /* on cache l'ancien titre */
         }
 
         /* Conteneur principal des écrans (avec safe area) */
@@ -266,13 +286,33 @@
             flex-direction: column;
             gap: 0.75rem;
         }
+
+        /* Bouton d'installation personnalisé */
+        #installButton {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            padding: 12px 24px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 2rem;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <!-- Barre supérieure avec titre centré -->
+    <!-- Barre supérieure avec sélecteur de date -->
     <div class="app-bar">
         <span class="session-info" id="sessionInfo">Chargement...</span>
-        <span class="app-title">FastDeal - G</span>
+        <div class="date-selector">
+            <input type="date" id="datePicker">
+            <button id="btnToday" class="secondary">Aujourd'hui</button>
+        </div>
         <span class="rate-info" id="rateInfo">USD/CFA: ...</span>
     </div>
 
@@ -402,23 +442,10 @@
             </div>
         </div>
 
-        <!-- Écran ARCHIVES & LOGS -->
+        <!-- Écran JOURNAL (anciennement Archives) -->
         <div id="screenArchives" class="screen">
-            <h2 class="screen-title">🗂️ Archives & Journal</h2>
-            <div class="card">
-                <div class="flex-row">
-                    <select id="archiveSelect" style="flex:2;">
-                        <option>Choisir une date</option>
-                    </select>
-                </div>
-                <div class="flex-row mt-2" style="gap: 0.5rem;">
-                    <button id="btnLoadArchive" class="secondary full-width">Charger</button>
-                    <button id="btnEditArchive" class="secondary full-width">✏️ Modifier</button>
-                    <button id="btnRefreshArchives" class="secondary full-width">Rafraîchir</button>
-                </div>
-            </div>
+            <h2 class="screen-title">📋 Journal des actions</h2>
             <input type="text" id="logFilter" placeholder="Filtrer les actions...">
-            <h4>Journal des actions</h4>
             <div class="scrollable" id="logsList"></div>
         </div>
 
@@ -464,9 +491,12 @@
         <div class="nav-item" data-screen="calculs"><i>📊</i><span>Calculs</span></div>
         <div class="nav-item" data-screen="stocks"><i>📦</i><span>Stock</span></div>
         <div class="nav-item" data-screen="resume"><i>📈</i><span>Résumé</span></div>
-        <div class="nav-item" data-screen="archives"><i>🗂️</i><span>Archives</span></div>
+        <div class="nav-item" data-screen="archives"><i>📋</i><span>Journal</span></div>
         <div class="nav-item" data-screen="profile"><i>⚙️</i><span>Param</span></div>
     </div>
+
+    <!-- Bouton d'installation personnalisé -->
+    <button id="installButton">📲 Installer l'application</button>
 
     <script>
         // ==================== Application principale ====================
@@ -524,6 +554,8 @@
                     profile: document.getElementById('screenProfile'),
                 },
                 navItems: document.querySelectorAll('.nav-item'),
+                datePicker: document.getElementById('datePicker'),
+                btnToday: document.getElementById('btnToday'),
                 venteQty: document.getElementById('venteQty'),
                 ventePrix: document.getElementById('ventePrix'),
                 previewRevenu: document.getElementById('previewRevenu'),
@@ -573,10 +605,6 @@
                 resAvgPrice: document.getElementById('resAvgPrice'),
                 resAvgBenef: document.getElementById('resAvgBenef'),
                 resMargin: document.getElementById('resMargin'),
-                archiveSelect: document.getElementById('archiveSelect'),
-                btnLoadArchive: document.getElementById('btnLoadArchive'),
-                btnEditArchive: document.getElementById('btnEditArchive'),
-                btnRefreshArchives: document.getElementById('btnRefreshArchives'),
                 logFilter: document.getElementById('logFilter'),
                 logsList: document.getElementById('logsList'),
                 settingThreshold: document.getElementById('settingThreshold'),
@@ -588,11 +616,12 @@
                 btnSaveSettings: document.getElementById('btnSaveSettings'),
                 btnFetchRate: document.getElementById('btnFetchRate'),
                 btnWipeAll: document.getElementById('btnWipeAll'),
+                installButton: document.getElementById('installButton'),
             };
 
             // --- Initialisation de la base IndexedDB ---
             const DB_NAME = 'FastDealDB';
-            const DB_VERSION = 3; // Incrémenté pour ajouter le store backups
+            const DB_VERSION = 3;
             let db = null;
 
             function openDB() {
@@ -723,7 +752,6 @@
                 if (!AppState.dailyBackupEnabled) return;
 
                 try {
-                    // Récupérer les données (comme exportJSON)
                     const sessionsTx = db.transaction('dailySessions', 'readonly');
                     const sessionsStore = sessionsTx.objectStore('dailySessions');
                     let sessions = await sessionsStore.getAll();
@@ -734,7 +762,6 @@
                     let lots = await lotsStore.getAll();
                     if (!Array.isArray(lots)) lots = [];
 
-                    // Fusion avec les données en mémoire (sessions et lots)
                     const todaySessionIndex = sessions.findIndex(s => s.date === AppState.currentSessionDate);
                     const currentSessionData = {
                         date: AppState.currentSessionDate,
@@ -748,7 +775,6 @@
                         sessions.push(currentSessionData);
                     }
 
-                    // Fusion des lots : remplacer ceux qui existent déjà par ceux en mémoire
                     const lotMap = new Map();
                     for (let lot of lots) lotMap.set(lot.lot_id, lot);
                     for (let lot of AppState.stocks) lotMap.set(lot.lot_id, lot);
@@ -764,7 +790,6 @@
                         config: JSON.parse(config)
                     };
 
-                    // Sauvegarder dans IndexedDB (store backups)
                     const backupTx = db.transaction('backups', 'readwrite');
                     const backupStore = backupTx.objectStore('backups');
                     await backupStore.put({
@@ -773,7 +798,6 @@
                     });
                     await backupTx.complete;
 
-                    // Télécharger le fichier (tentative)
                     try {
                         const json = JSON.stringify(backupData, null, 2);
                         const blob = new Blob([json], { type: 'application/json' });
@@ -805,7 +829,6 @@
 
                 if (!AppState.dailyBackupEnabled) return;
 
-                // Vérifier toutes les minutes
                 AppState.backupTimerId = setInterval(() => {
                     const now = new Date();
                     const hours = now.getHours();
@@ -841,8 +864,8 @@
                     AppState.actionLogs = [];
                     AppState.isReadOnly = false;
                     AppState.currentSessionDate = new Date().toISOString().slice(0,10);
+                    DOM.datePicker.value = AppState.currentSessionDate;
                     renderAll();
-                    refreshArchiveList();
                     showMessage('✅ Toutes les données ont été effacées', 'success');
                 } catch (e) {
                     console.error('Erreur lors du wipe:', e);
@@ -877,7 +900,7 @@
                         sessions.push(currentSessionData);
                     }
 
-                    // Fusion des lots : remplacer ceux qui existent déjà par ceux en mémoire
+                    // Fusion des lots
                     const lotMap = new Map();
                     for (let lot of lots) lotMap.set(lot.lot_id, lot);
                     for (let lot of AppState.stocks) lotMap.set(lot.lot_id, lot);
@@ -955,7 +978,6 @@
                         }
 
                         renderAll();
-                        refreshArchiveList();
                         showMessage('✅ Import JSON réussi', 'success');
                     } catch (err) {
                         console.error('Erreur import JSON:', err);
@@ -1047,7 +1069,7 @@
                 }
             }
 
-            // --- Fonctions métier (ajouterVente, ajouterLotAchat, etc.) ---
+            // --- Fonctions métier ---
             function ajouterVente(qty, prixVente) {
                 if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return false; }
                 if (qty <= 0 || prixVente <= 0) { showMessage('Quantité et prix positifs', 'warning'); return false; }
@@ -1587,38 +1609,36 @@
                 }
             }
 
-            async function refreshArchiveList() {
-                const tx = db.transaction('dailySessions', 'readonly');
-                const store = tx.objectStore('dailySessions');
-                const all = await store.getAll();
-                const select = DOM.archiveSelect;
-                select.innerHTML = '<option>Choisir une date</option>';
-                all.sort((a,b) => b.date.localeCompare(a.date)).forEach(session => {
-                    const opt = document.createElement('option');
-                    opt.value = session.date;
-                    opt.innerText = session.date.split('-').reverse().join('/');
-                    select.appendChild(opt);
-                });
-            }
+            // NOUVELLE FONCTION : changer de session
+            async function switchSession(newDate) {
+                if (newDate === AppState.currentSessionDate) return;
 
-            async function loadArchive(date) {
-                const session = await loadSession(date);
+                if (!confirm(`Passer à la session du ${newDate.split('-').reverse().join('/')} ?\nLa session actuelle sera sauvegardée.`)) return;
+
+                // 1. Sauvegarde obligatoire de la session en cours
+                await saveCurrentSession();
+                await saveStockLots();
+
+                // 2. Chargement de la nouvelle session (ou création vide)
+                const session = await loadSession(newDate);
                 if (session) {
                     AppState.entries = session.entries || [];
                     AppState.stockOperations = session.stockOperations || [];
                     AppState.actionLogs = session.actionLogs || [];
-                    AppState.isReadOnly = true;
-                    AppState.currentSessionDate = date;
-                    DOM.sessionInfo.innerText = `📦 Archive du ${date.split('-').reverse().join('/')}`;
-                    renderAll();
-                    showMessage('Archive chargée — lecture seule', 'info');
+                } else {
+                    AppState.entries = [];
+                    AppState.stockOperations = [];
+                    AppState.actionLogs = [];
                 }
-            }
 
-            function enableEditArchive() {
-                AppState.isReadOnly = false;
-                DOM.sessionInfo.innerText = `✏️ Édition de l'archive ${AppState.currentSessionDate.split('-').reverse().join('/')}`;
+                AppState.currentSessionDate = newDate;
+                AppState.isReadOnly = false; // toujours modifiable
+
+                DOM.sessionInfo.innerText = `Session du ${newDate.split('-').reverse().join('/')}`;
+                DOM.datePicker.value = newDate;
+                
                 renderAll();
+                showMessage(`✅ Session du ${newDate} chargée (modifiable)`, 'success');
             }
 
             function ajouterLog(type, description) {
@@ -1656,11 +1676,12 @@
                 renderStocks(DOM.showAllLots.checked);
                 renderLogs(DOM.logFilter.value);
 
-                if (!AppState.isReadOnly && AppState.currentSessionDate === (() => {
-                    const d = new Date();
-                    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                })()) {
+                // Mise à jour de l'info de session si on est sur la session du jour (pour l'affichage)
+                const todayStr = new Date().toISOString().slice(0,10);
+                if (!AppState.isReadOnly && AppState.currentSessionDate === todayStr) {
                     DOM.sessionInfo.innerText = `Session du ${new Date().toLocaleDateString()}`;
+                } else {
+                    DOM.sessionInfo.innerText = `Session du ${AppState.currentSessionDate.split('-').reverse().join('/')}`;
                 }
                 updateRateDisplay();
 
@@ -1752,6 +1773,29 @@
                 }
             }
 
+            // --- Gestion du prompt d'installation ---
+            let deferredPrompt;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                DOM.installButton.style.display = 'block';
+            });
+
+            DOM.installButton.addEventListener('click', async () => {
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`Installation : ${outcome}`);
+                deferredPrompt = null;
+                DOM.installButton.style.display = 'none';
+            });
+
+            window.addEventListener('appinstalled', () => {
+                deferredPrompt = null;
+                DOM.installButton.style.display = 'none';
+                console.log('Application installée');
+            });
+
             // --- Initialisation ---
             async function init() {
                 await openDB();
@@ -1772,18 +1816,16 @@
                 AppState.isReadOnly = false;
 
                 renderAll();
-                refreshArchiveList();
                 DOM.sessionInfo.innerText = `Session du ${new Date().toLocaleDateString()}`;
+                DOM.datePicker.value = today;
 
                 fetchExchangeRate(true);
                 setInterval(() => fetchExchangeRate(), 3600000);
 
-                // Demander la permission de notification au démarrage si activée
                 if (AppState.notificationsEnabled) {
                     requestNotificationPermission();
                 }
 
-                // Planifier la sauvegarde quotidienne
                 scheduleDailyBackup();
 
                 // --- Événements ---
@@ -1807,7 +1849,6 @@
                     await saveStockLots();
                     DOM.saveMessage.innerText = '✅ Session sauvegardée !';
                     setTimeout(() => DOM.saveMessage.innerText = '', 2000);
-                    refreshArchiveList();
                 });
 
                 DOM.btnRecalc.addEventListener('click', updateCalculs);
@@ -1872,6 +1913,7 @@
 
                 DOM.showAllLots.addEventListener('change', (e) => renderStocks(e.target.checked));
 
+                // Navigation
                 DOM.navItems.forEach(item => {
                     item.addEventListener('click', () => {
                         const screen = item.dataset.screen;
@@ -1884,7 +1926,6 @@
                         if (screen === 'stocks') renderStocks(DOM.showAllLots.checked);
                         if (screen === 'archives') {
                             renderLogs(DOM.logFilter.value);
-                            refreshArchiveList();
                         }
                         if (screen === 'resume') {
                             renderResume();
@@ -1892,14 +1933,17 @@
                     });
                 });
 
-                DOM.btnLoadArchive.addEventListener('click', async () => {
-                    const date = DOM.archiveSelect.value;
-                    if (date && date !== 'Choisir une date') {
-                        await loadArchive(date);
-                    }
+                // Sélecteur de date
+                DOM.datePicker.addEventListener('change', () => {
+                    switchSession(DOM.datePicker.value);
                 });
-                DOM.btnEditArchive.addEventListener('click', enableEditArchive);
-                DOM.btnRefreshArchives.addEventListener('click', refreshArchiveList);
+
+                DOM.btnToday.addEventListener('click', () => {
+                    const today = new Date().toISOString().slice(0,10);
+                    DOM.datePicker.value = today;
+                    switchSession(today);
+                });
+
                 DOM.logFilter.addEventListener('input', () => renderLogs(DOM.logFilter.value));
 
                 DOM.periodSelect.addEventListener('change', () => {
@@ -1922,6 +1966,17 @@
 
             init();
         })();
+    </script>
+
+    <!-- Enregistrement du Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('✅ Service Worker enregistré', reg))
+                    .catch(err => console.error('❌ Erreur Service Worker', err));
+            });
+        }
     </script>
 </body>
 </html>
