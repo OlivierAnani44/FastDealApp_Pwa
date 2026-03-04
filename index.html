@@ -70,13 +70,13 @@
             min-width: 70px;
         }
 
-        /* Barre de sélecteur de date (en bas) */
+        /* Barre de sélecteur de date (en haut, juste sous l'en-tête) */
         .date-bar {
             background-color: var(--bg-light);
             padding: 0.5rem 1rem;
             display: flex;
             justify-content: center;
-            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
             flex-shrink: 0;
         }
         .date-selector {
@@ -141,11 +141,27 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
-        /* Grilles - responsive */
+        /* Grilles - adaptées pour mobile */
         .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .grid-2 > div {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Pour les anciennes grilles, on peut garder une structure en lignes */
+        .grid-2 span:first-child {
+            font-weight: normal;
+            color: var(--text-secondary);
+        }
+        .grid-2 span:last-child {
+            font-weight: bold;
+            text-align: right;
         }
 
         /* Champs de texte */
@@ -375,9 +391,6 @@
             .screen-title {
                 font-size: 1.1rem;
             }
-            .grid-2 {
-                grid-template-columns: 1fr;
-            }
         }
     </style>
 </head>
@@ -386,6 +399,14 @@
     <div class="app-bar">
         <span class="app-title">FastDeal</span>
         <span class="rate-info" id="rateInfo">USD/CFA: ...</span>
+    </div>
+
+    <!-- Barre de sélecteur de date (juste en dessous) -->
+    <div class="date-bar">
+        <div class="date-selector">
+            <input type="date" id="datePicker">
+            <button id="btnToday" class="secondary">Aujourd'hui</button>
+        </div>
     </div>
 
     <!-- Conteneur des écrans -->
@@ -431,12 +452,12 @@
             <h2 class="screen-title">📊 Résumé session</h2>
             <div class="card">
                 <div class="grid-2">
-                    <span>Total $ vendus :</span><span id="calcTotalDollars" class="bold text-primary">0 $</span>
-                    <span>Revenu total :</span><span id="calcTotalCfa" class="bold text-success">0 CFA</span>
-                    <span>Bénéfice total :</span><span id="calcTotalBenef" class="bold text-warning">0 CFA</span>
-                    <span>Prix moyen :</span><span id="calcAvgPrice" class="bold">0 CFA/$</span>
-                    <span>Bénéfice moyen :</span><span id="calcAvgBenef" class="bold">0 CFA/$</span>
-                    <span>Marge :</span><span id="calcMargin" class="bold">0 %</span>
+                    <div><span>Total $ vendus :</span> <span id="calcTotalDollars" class="bold text-primary">0 $</span></div>
+                    <div><span>Revenu total :</span> <span id="calcTotalCfa" class="bold text-success">0 CFA</span></div>
+                    <div><span>Bénéfice total :</span> <span id="calcTotalBenef" class="bold text-warning">0 CFA</span></div>
+                    <div><span>Prix moyen :</span> <span id="calcAvgPrice" class="bold">0 CFA/$</span></div>
+                    <div><span>Bénéfice moyen :</span> <span id="calcAvgBenef" class="bold">0 CFA/$</span></div>
+                    <div><span>Marge :</span> <span id="calcMargin" class="bold">0 %</span></div>
                 </div>
             </div>
             <div class="card">
@@ -504,12 +525,12 @@
                 </div>
                 <h4 id="periodTitle" class="mb-2">Période : Semaine en cours</h4>
                 <div class="grid-2">
-                    <span>Total $ vendus :</span><span id="resTotalDollars" class="bold">0 $</span>
-                    <span>Revenu total :</span><span id="resTotalCfa" class="bold">0 CFA</span>
-                    <span>Bénéfice total :</span><span id="resTotalBenef" class="bold">0 CFA</span>
-                    <span>Prix moyen :</span><span id="resAvgPrice" class="bold">0 CFA/$</span>
-                    <span>Bénéfice moyen :</span><span id="resAvgBenef" class="bold">0 CFA/$</span>
-                    <span>Marge :</span><span id="resMargin" class="bold">0 %</span>
+                    <div><span>Total $ vendus :</span> <span id="resTotalDollars" class="bold">0 $</span></div>
+                    <div><span>Revenu total :</span> <span id="resTotalCfa" class="bold">0 CFA</span></div>
+                    <div><span>Bénéfice total :</span> <span id="resTotalBenef" class="bold">0 CFA</span></div>
+                    <div><span>Prix moyen :</span> <span id="resAvgPrice" class="bold">0 CFA/$</span></div>
+                    <div><span>Bénéfice moyen :</span> <span id="resAvgBenef" class="bold">0 CFA/$</span></div>
+                    <div><span>Marge :</span> <span id="resMargin" class="bold">0 %</span></div>
                 </div>
             </div>
         </div>
@@ -553,14 +574,6 @@
                 <button id="btnWipeAll" class="danger full-width mt-2">⚠️ Effacer TOUTES les données</button>
                 <div class="small text-muted" style="margin-top:1rem;">Version 7.8.1</div>
             </div>
-        </div>
-    </div>
-
-    <!-- Barre de sélecteur de date (en bas) -->
-    <div class="date-bar">
-        <div class="date-selector">
-            <input type="date" id="datePicker">
-            <button id="btnToday" class="secondary">Aujourd'hui</button>
         </div>
     </div>
 
