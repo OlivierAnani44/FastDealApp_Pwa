@@ -44,7 +44,7 @@
             flex-direction: column;
         }
 
-        /* En-tête avec sélecteur de date - responsive */
+        /* En-tête avec titre et taux */
         .app-bar {
             background-color: var(--bg-light);
             padding: 0.75rem 1rem;
@@ -53,41 +53,42 @@
             justify-content: space-between;
             box-shadow: 0 2px 8px rgba(0,0,0,0.5);
             flex-shrink: 0;
-            gap: 0.5rem;
-            flex-wrap: wrap;
         }
-        .session-info {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            text-align: left;
-            flex: 1 1 auto;
+        .app-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--primary);
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-width: 70px;
         }
         .rate-info {
             font-size: 0.7rem;
             color: var(--text-muted);
             text-align: right;
-            flex: 1 1 auto;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             min-width: 70px;
         }
+
+        /* Barre de sélecteur de date (en bas) */
+        .date-bar {
+            background-color: var(--bg-light);
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: center;
+            border-top: 1px solid #333;
+            flex-shrink: 0;
+        }
         .date-selector {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            flex: 2 1 auto;
-            justify-content: center;
         }
         .date-selector input[type="date"] {
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             padding: 0.5rem;
             border-radius: 8px;
-            background: var(--bg-light);
+            background: var(--bg-dark);
             color: white;
             border: 1px solid #444;
             width: auto;
@@ -98,9 +99,6 @@
             font-size: 0.75rem;
             background-color: var(--secondary);
             white-space: nowrap;
-        }
-        .app-title {
-            display: none;
         }
 
         /* Conteneur principal des écrans (avec safe area) */
@@ -306,7 +304,7 @@
         /* Bouton d'installation personnalisé (Android) */
         #installButton {
             position: fixed;
-            bottom: 80px;
+            bottom: 140px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
@@ -323,7 +321,7 @@
         /* Guide d'installation iOS */
         #iosInstallGuide {
             position: fixed;
-            bottom: 80px;
+            bottom: 140px;
             left: 10px;
             right: 10px;
             background: var(--primary);
@@ -356,14 +354,14 @@
         /* Media queries pour très petits écrans */
         @media (max-width: 400px) {
             .app-bar {
-                flex-direction: column;
-                align-items: stretch;
+                padding: 0.5rem;
             }
-            .session-info, .rate-info {
-                text-align: center;
+            .app-title {
+                font-size: 1.1rem;
             }
-            .date-selector {
-                justify-content: space-between;
+            .rate-info {
+                font-size: 0.6rem;
+                min-width: 50px;
             }
             .date-selector input[type="date"] {
                 max-width: 120px;
@@ -384,13 +382,9 @@
     </style>
 </head>
 <body>
-    <!-- Barre supérieure avec sélecteur de date -->
+    <!-- Barre supérieure avec titre et taux -->
     <div class="app-bar">
-        <span class="session-info" id="sessionInfo">Chargement...</span>
-        <div class="date-selector">
-            <input type="date" id="datePicker">
-            <button id="btnToday" class="secondary">Aujourd'hui</button>
-        </div>
+        <span class="app-title">FastDeal</span>
         <span class="rate-info" id="rateInfo">USD/CFA: ...</span>
     </div>
 
@@ -562,6 +556,14 @@
         </div>
     </div>
 
+    <!-- Barre de sélecteur de date (en bas) -->
+    <div class="date-bar">
+        <div class="date-selector">
+            <input type="date" id="datePicker">
+            <button id="btnToday" class="secondary">Aujourd'hui</button>
+        </div>
+    </div>
+
     <!-- Barre de navigation basse -->
     <div class="bottom-nav">
         <div class="nav-item active" data-screen="saisie"><i>💰</i><span>Vente</span></div>
@@ -630,7 +632,6 @@
 
             // --- Références DOM ---
             const DOM = {
-                sessionInfo: document.getElementById('sessionInfo'),
                 rateInfo: document.getElementById('rateInfo'),
                 messageArea: document.getElementById('messageArea'),
                 screens: {
@@ -1721,7 +1722,6 @@
                 AppState.currentSessionDate = newDate;
                 AppState.isReadOnly = false;
 
-                DOM.sessionInfo.innerText = `Session du ${newDate.split('-').reverse().join('/')}`;
                 DOM.datePicker.value = newDate;
                 
                 renderAll();
@@ -1763,12 +1763,6 @@
                 renderStocks(DOM.showAllLots.checked);
                 renderLogs(DOM.logFilter.value);
 
-                const todayStr = new Date().toISOString().slice(0,10);
-                if (!AppState.isReadOnly && AppState.currentSessionDate === todayStr) {
-                    DOM.sessionInfo.innerText = `Session du ${new Date().toLocaleDateString()}`;
-                } else {
-                    DOM.sessionInfo.innerText = `Session du ${AppState.currentSessionDate.split('-').reverse().join('/')}`;
-                }
                 updateRateDisplay();
 
                 DOM.btnVendre.disabled = AppState.isReadOnly;
@@ -1915,7 +1909,6 @@
                 AppState.isReadOnly = false;
 
                 renderAll();
-                DOM.sessionInfo.innerText = `Session du ${new Date().toLocaleDateString()}`;
                 DOM.datePicker.value = today;
 
                 fetchExchangeRate(true);
