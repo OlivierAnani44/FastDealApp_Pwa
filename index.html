@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <base href="/FastDealApp_Pwa/">
     <title>FastDeal</title>
     <link rel="manifest" href="manifest.json">
     <style>
@@ -43,7 +44,7 @@
             flex-direction: column;
         }
 
-        /* En-tête avec sélecteur de date */
+        /* En-tête avec sélecteur de date - responsive */
         .app-bar {
             background-color: var(--bg-light);
             padding: 0.75rem 1rem;
@@ -52,22 +53,24 @@
             justify-content: space-between;
             box-shadow: 0 2px 8px rgba(0,0,0,0.5);
             flex-shrink: 0;
-            gap: 8px;
+            gap: 0.5rem;
+            flex-wrap: wrap;
         }
         .session-info {
             font-size: 0.8rem;
             color: var(--text-secondary);
             text-align: left;
-            flex: 1;
+            flex: 1 1 auto;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            min-width: 70px;
         }
         .rate-info {
             font-size: 0.7rem;
             color: var(--text-muted);
             text-align: right;
-            flex: 1;
+            flex: 1 1 auto;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -76,24 +79,25 @@
         .date-selector {
             display: flex;
             align-items: center;
-            gap: 8px;
-            flex: 2;
+            gap: 0.5rem;
+            flex: 2 1 auto;
             justify-content: center;
         }
         .date-selector input[type="date"] {
-            font-size: 0.95rem;
-            padding: 6px 10px;
+            font-size: 0.85rem;
+            padding: 0.5rem;
             border-radius: 8px;
             background: var(--bg-light);
             color: white;
             border: 1px solid #444;
             width: auto;
-            max-width: 160px;
+            max-width: 140px;
         }
         .date-selector button {
-            padding: 6px 12px;
-            font-size: 0.85rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
             background-color: var(--secondary);
+            white-space: nowrap;
         }
         .app-title {
             display: none;
@@ -119,9 +123,9 @@
             display: flex;
         }
 
-        /* Titre d'écran moderne */
+        /* Titre d'écran moderne - responsive */
         .screen-title {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: var(--secondary);
             margin-bottom: 0.5rem;
@@ -139,11 +143,11 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
 
-        /* Grilles */
+        /* Grilles - responsive */
         .grid-2 {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1rem;
+            gap: 0.75rem;
         }
 
         /* Champs de texte */
@@ -182,7 +186,7 @@
             cursor: default;
         }
 
-        /* Barre de navigation basse (avec safe area) */
+        /* Barre de navigation basse (avec safe area) - responsive */
         .bottom-nav {
             background-color: var(--bg-light);
             display: flex;
@@ -191,23 +195,25 @@
             padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
             flex-shrink: 0;
             border-top: 1px solid #333;
+            flex-wrap: wrap;
         }
         .nav-item {
-            flex: 1;
+            flex: 1 1 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 0.5rem;
+            padding: 0.5rem 0.25rem;
             color: var(--text-muted);
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             cursor: pointer;
             transition: color 0.2s;
+            min-width: 50px;
         }
         .nav-item.active {
             color: var(--primary);
         }
         .nav-item i {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             margin-bottom: 0.2rem;
         }
 
@@ -242,12 +248,16 @@
             display: flex;
             justify-content: space-between;
             font-weight: bold;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
         .card-detail {
             display: flex;
             justify-content: space-between;
             color: var(--text-secondary);
             font-size: 0.9rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
         }
         .card-actions {
             display: flex;
@@ -256,7 +266,7 @@
         }
         .card-actions button {
             flex: 1;
-            padding: 0.5rem 0.5rem;
+            padding: 0.5rem;
             font-size: 0.8rem;
             white-space: nowrap;
         }
@@ -266,6 +276,7 @@
             display: flex;
             gap: 0.5rem;
             align-items: center;
+            flex-wrap: wrap;
         }
         .mt-2 { margin-top: 0.5rem; }
         .mb-2 { margin-bottom: 0.5rem; }
@@ -340,6 +351,35 @@
             border-radius: 20px;
             font-weight: bold;
             cursor: pointer;
+        }
+
+        /* Media queries pour très petits écrans */
+        @media (max-width: 400px) {
+            .app-bar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .session-info, .rate-info {
+                text-align: center;
+            }
+            .date-selector {
+                justify-content: space-between;
+            }
+            .date-selector input[type="date"] {
+                max-width: 120px;
+            }
+            .nav-item i {
+                font-size: 1.1rem;
+            }
+            .nav-item span {
+                font-size: 0.6rem;
+            }
+            .screen-title {
+                font-size: 1.1rem;
+            }
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -794,7 +834,7 @@
             function sendNotification(title, body) {
                 if (!AppState.notificationsEnabled) return;
                 if (Notification.permission === 'granted') {
-                    new Notification(title, { body, icon: '/icon-192.png' });
+                    new Notification(title, { body, icon: '/FastDealApp_Pwa/icon-192.png' });
                 }
             }
 
@@ -1112,7 +1152,7 @@
                 if (Notification.permission === 'granted') {
                     new Notification('⚠️ Stock bas FastDeal', {
                         body: `Stock actuel : ${currentQty.toFixed(2)} $ (seuil ${AppState.stockThreshold} $)`,
-                        icon: '/icon-192.png',
+                        icon: '/FastDealApp_Pwa/icon-192.png',
                         silent: true,
                     });
                 }
@@ -1847,7 +1887,6 @@
                 return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
             }
 
-            // Afficher le guide iOS si sur iPhone/iPad et pas en mode standalone
             if (isIOS() && !window.navigator.standalone) {
                 DOM.iosInstallGuide.style.display = 'block';
             }
@@ -2028,11 +2067,11 @@
         })();
     </script>
 
-    <!-- Enregistrement du Service Worker -->
+    <!-- Enregistrement du Service Worker avec chemin relatif corrigé -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
+                navigator.serviceWorker.register('service-worker.js')
                     .then(reg => console.log('✅ Service Worker enregistré', reg))
                     .catch(err => console.error('❌ Erreur Service Worker', err));
             });
