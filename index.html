@@ -6,6 +6,9 @@
     <base href="/FastDealApp_Pwa/">
     <title>FastDeal</title>
     <link rel="manifest" href="manifest.json">
+    <!-- Police moderne et icônes Material -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         /* ========== VARIABLES CSS (thème sombre) ========== */
         :root {
@@ -23,13 +26,14 @@
             --text-primary: #ffffff;
             --text-secondary: #cccccc;
             --text-muted: #808080;
+            --border-color: #444;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            font-family: 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
         }
 
         html, body {
@@ -53,10 +57,11 @@
             justify-content: space-between;
             box-shadow: 0 2px 8px rgba(0,0,0,0.5);
             flex-shrink: 0;
+            border-bottom: 1px solid var(--border-color);
         }
         .app-title {
             font-size: 1.3rem;
-            font-weight: bold;
+            font-weight: 700;
             color: var(--primary);
             white-space: nowrap;
         }
@@ -70,13 +75,13 @@
             min-width: 70px;
         }
 
-        /* Barre de sélecteur de date (en haut, juste sous l'en-tête) */
+        /* Barre de sélecteur de date (juste en dessous) */
         .date-bar {
             background-color: var(--bg-light);
             padding: 0.5rem 1rem;
             display: flex;
             justify-content: center;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid var(--border-color);
             flex-shrink: 0;
         }
         .date-selector {
@@ -90,7 +95,7 @@
             border-radius: 8px;
             background: var(--bg-dark);
             color: white;
-            border: 1px solid #444;
+            border: 1px solid var(--border-color);
             width: auto;
             max-width: 140px;
         }
@@ -131,6 +136,13 @@
             border-bottom: 3px solid var(--secondary);
             letter-spacing: -0.5px;
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .screen-title .material-icons {
+            font-size: 1.5rem;
+            color: var(--secondary-light);
         }
 
         /* Cartes */
@@ -139,6 +151,11 @@
             border-radius: 1rem;
             padding: 1rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
         }
 
         /* Grilles - adaptées pour mobile */
@@ -154,28 +171,29 @@
             flex-wrap: wrap;
         }
 
-        /* Pour les anciennes grilles, on peut garder une structure en lignes */
         .grid-2 span:first-child {
-            font-weight: normal;
+            font-weight: 500;
             color: var(--text-secondary);
         }
         .grid-2 span:last-child {
-            font-weight: bold;
+            font-weight: 600;
             text-align: right;
         }
 
         /* Champs de texte */
         input, select {
             background-color: var(--bg-light);
-            border: 1px solid #444;
+            border: 1px solid var(--border-color);
             color: var(--text-primary);
             padding: 0.75rem;
             border-radius: 0.5rem;
             font-size: 1rem;
             width: 100%;
+            transition: border 0.2s, box-shadow 0.2s;
         }
         input:focus {
             outline: 2px solid var(--primary);
+            border-color: transparent;
         }
 
         /* Boutons */
@@ -185,19 +203,26 @@
             color: white;
             padding: 0.75rem 1rem;
             border-radius: 2rem;
-            font-weight: bold;
+            font-weight: 600;
             font-size: 1rem;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, transform 0.1s;
             border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
-        button:active { opacity: 0.7; }
+        button:active { opacity: 0.7; transform: scale(0.98); }
         button.secondary { background-color: var(--secondary); }
         button.danger { background-color: var(--danger); }
         button:disabled {
             opacity: 0.4;
             pointer-events: none;
             cursor: default;
+        }
+        button .material-icons {
+            font-size: 1.2rem;
         }
 
         /* Barre de navigation basse (avec safe area) - responsive */
@@ -208,7 +233,7 @@
             padding: 0.25rem 0;
             padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
             flex-shrink: 0;
-            border-top: 1px solid #333;
+            border-top: 1px solid var(--border-color);
             flex-wrap: wrap;
         }
         .nav-item {
@@ -226,7 +251,7 @@
         .nav-item.active {
             color: var(--primary);
         }
-        .nav-item i {
+        .nav-item .material-icons {
             font-size: 1.3rem;
             margin-bottom: 0.2rem;
         }
@@ -236,7 +261,12 @@
             padding: 0.5rem;
             border-radius: 0.5rem;
             text-align: center;
-            font-weight: bold;
+            font-weight: 600;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .message.success { background-color: #1e4a1e; color: #adffad; }
         .message.error { background-color: #4a1e1e; color: #ffadad; }
@@ -257,11 +287,15 @@
             border-radius: 0.75rem;
             padding: 0.75rem;
             margin-bottom: 0.75rem;
+            transition: background-color 0.2s;
+        }
+        .history-card:hover {
+            background-color: var(--bg-dark);
         }
         .card-header {
             display: flex;
             justify-content: space-between;
-            font-weight: bold;
+            font-weight: 600;
             flex-wrap: wrap;
             gap: 0.5rem;
         }
@@ -298,7 +332,7 @@
         .text-warning { color: var(--warning); }
         .text-danger { color: var(--danger); }
         .text-info { color: var(--info); }
-        .bold { font-weight: bold; }
+        .bold { font-weight: 600; }
         .small { font-size: 0.8rem; }
         .full-width { width: 100%; }
 
@@ -308,6 +342,7 @@
             min-width: 1.5rem;
             height: 1.5rem;
             margin-right: 0.5rem;
+            accent-color: var(--primary);
         }
 
         /* Espacement vertical des boutons */
@@ -332,6 +367,12 @@
             font-weight: bold;
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             display: none;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 4px 12px rgba(255,140,0,0.4); }
+            50% { box-shadow: 0 4px 20px rgba(255,140,0,0.8); }
+            100% { box-shadow: 0 4px 12px rgba(255,140,0,0.4); }
         }
 
         /* Guide d'installation iOS */
@@ -348,6 +389,11 @@
             z-index: 1000;
             display: none;
             text-align: center;
+            animation: slideUp 0.3s;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
         }
         #iosInstallGuide p {
             margin-bottom: 10px;
@@ -382,7 +428,7 @@
             .date-selector input[type="date"] {
                 max-width: 120px;
             }
-            .nav-item i {
+            .nav-item .material-icons {
                 font-size: 1.1rem;
             }
             .nav-item span {
@@ -413,7 +459,7 @@
     <div class="screen-container" id="screenContainer">
         <!-- Écran SAISIE -->
         <div id="screenSaisie" class="screen active">
-            <h2 class="screen-title">💰 Vente</h2>
+            <h2 class="screen-title"><span class="material-icons">attach_money</span> Vente</h2>
             <div class="card">
                 <div id="stockTotal" class="text-success bold">Stock disponible : 0 $</div>
                 <div id="stockValue" class="text-warning bold">Valeur stock : 0 CFA</div>
@@ -428,7 +474,7 @@
                 </div>
                 <div id="previewRevenu" class="text-success bold mt-2">Revenu estimé : 0 CFA</div>
                 <div id="previewBenef" class="text-warning bold">Bénéfice estimé* : 0 CFA</div>
-                <button id="btnVendre" class="mt-2 full-width">Vendre</button>
+                <button id="btnVendre" class="mt-2 full-width"><span class="material-icons">add</span> Vendre</button>
             </div>
             <div class="card" id="dailyGoalCard" style="display: none;">
                 <div id="dailyGoalLabel"></div>
@@ -439,17 +485,17 @@
 
         <!-- Écran HISTORIQUE -->
         <div id="screenHistorique" class="screen">
-            <h2 class="screen-title">📋 Historique</h2>
+            <h2 class="screen-title"><span class="material-icons">history</span> Historique</h2>
             <div class="flex-row">
                 <input type="text" id="histFilter" placeholder="Filtrer par montant..." style="flex:1;">
-                <button id="btnRefreshHist" class="secondary" style="width:auto;">⟳</button>
+                <button id="btnRefreshHist" class="secondary" style="width:auto;" aria-label="Rafraîchir"><span class="material-icons">refresh</span></button>
             </div>
             <div class="scrollable" id="histList"></div>
         </div>
 
         <!-- Écran CALCULS -->
         <div id="screenCalculs" class="screen">
-            <h2 class="screen-title">📊 Résumé session</h2>
+            <h2 class="screen-title"><span class="material-icons">calculate</span> Résumé session</h2>
             <div class="card">
                 <div class="grid-2">
                     <div><span>Total $ vendus :</span> <span id="calcTotalDollars" class="bold text-primary">0 $</span></div>
@@ -462,8 +508,8 @@
             </div>
             <div class="card">
                 <div class="flex-row" style="gap: 0.75rem;">
-                    <button id="btnSaveSession" class="secondary full-width">💾 Sauvegarder</button>
-                    <button id="btnRecalc" class="secondary full-width">📊 Recalculer</button>
+                    <button id="btnSaveSession" class="secondary full-width"><span class="material-icons">save</span> Sauvegarder</button>
+                    <button id="btnRecalc" class="secondary full-width"><span class="material-icons">refresh</span> Recalculer</button>
                 </div>
                 <div class="flex-row" style="justify-content: flex-start; margin-top: 0.75rem;">
                     <input type="checkbox" id="autoSaveCheck" disabled>
@@ -471,18 +517,18 @@
                 </div>
                 <div id="saveMessage" class="small" style="margin-top: 0.5rem;"></div>
                 <div class="button-group" style="margin-top: 1rem;">
-                    <button id="btnClearAll" class="danger full-width">🧹 Effacer toutes les ventes (session courante)</button>
-                    <button id="btnExportCSV" class="secondary full-width">📤 Exporter CSV</button>
+                    <button id="btnClearAll" class="danger full-width"><span class="material-icons">delete_sweep</span> Effacer toutes les ventes (session courante)</button>
+                    <button id="btnExportCSV" class="secondary full-width"><span class="material-icons">download</span> Exporter CSV</button>
                 </div>
             </div>
         </div>
 
         <!-- Écran STOCKS -->
         <div id="screenStocks" class="screen">
-            <h2 class="screen-title">📦 Gestion des stocks</h2>
+            <h2 class="screen-title"><span class="material-icons">inventory</span> Gestion des stocks</h2>
             <div class="flex-row">
                 <h3 style="flex:1;">Stocks</h3>
-                <button id="btnAddLot">+ Lot</button>
+                <button id="btnAddLot"><span class="material-icons">add</span> + Lot</button>
             </div>
             <div class="card">
                 <div id="stockTotalQty" class="text-success">Quantité totale: 0 $</div>
@@ -502,7 +548,7 @@
 
         <!-- Écran RÉSUMÉ PÉRIODE -->
         <div id="screenResume" class="screen">
-            <h2 class="screen-title">📈 Résumé par période</h2>
+            <h2 class="screen-title"><span class="material-icons">assessment</span> Résumé par période</h2>
             <div class="card">
                 <div class="flex-row mb-2">
                     <select id="periodSelect" style="flex:1;">
@@ -516,12 +562,12 @@
                         <option value="prevYear">Année précédente</option>
                         <option value="custom">Personnalisé</option>
                     </select>
-                    <button id="btnRefreshResume">Actualiser</button>
+                    <button id="btnRefreshResume" class="secondary"><span class="material-icons">refresh</span></button>
                 </div>
                 <div id="customDates" style="display: none; margin-top:0.5rem;" class="flex-row">
                     <input type="date" id="customStart">
                     <input type="date" id="customEnd">
-                    <button id="btnApplyCustom">OK</button>
+                    <button id="btnApplyCustom" class="secondary">OK</button>
                 </div>
                 <h4 id="periodTitle" class="mb-2">Période : Semaine en cours</h4>
                 <div class="grid-2">
@@ -537,14 +583,14 @@
 
         <!-- Écran JOURNAL -->
         <div id="screenArchives" class="screen">
-            <h2 class="screen-title">📋 Journal des actions</h2>
+            <h2 class="screen-title"><span class="material-icons">article</span> Journal des actions</h2>
             <input type="text" id="logFilter" placeholder="Filtrer les actions...">
             <div class="scrollable" id="logsList"></div>
         </div>
 
         <!-- Écran PROFIL -->
         <div id="screenProfile" class="screen">
-            <h2 class="screen-title">⚙️ Paramètres</h2>
+            <h2 class="screen-title"><span class="material-icons">settings</span> Paramètres</h2>
             <div class="card">
                 <div class="grid-2">
                     <span>Seuil alerte ($) :</span>
@@ -566,12 +612,12 @@
                     <input type="checkbox" id="settingNotifications" checked>
                     <label>Activer les notifications</label>
                 </div>
-                <button id="btnSaveSettings" class="secondary full-width mt-2">Sauvegarder</button>
-                <button id="btnFetchRate" class="secondary full-width mt-2">Mettre à jour le taux</button>
-                <button id="btnExportJSON" class="secondary full-width mt-2">📥 Exporter JSON (tout)</button>
+                <button id="btnSaveSettings" class="secondary full-width mt-2"><span class="material-icons">save</span> Sauvegarder</button>
+                <button id="btnFetchRate" class="secondary full-width mt-2"><span class="material-icons">sync</span> Mettre à jour le taux</button>
+                <button id="btnExportJSON" class="secondary full-width mt-2"><span class="material-icons">download</span> Exporter JSON (tout)</button>
                 <input type="file" id="importJSON" accept=".json" style="display:none;">
-                <button id="btnImportJSON" class="secondary full-width mt-2">📤 Importer JSON (restauration)</button>
-                <button id="btnWipeAll" class="danger full-width mt-2">⚠️ Effacer TOUTES les données</button>
+                <button id="btnImportJSON" class="secondary full-width mt-2"><span class="material-icons">upload</span> Importer JSON (restauration)</button>
+                <button id="btnWipeAll" class="danger full-width mt-2"><span class="material-icons">warning</span> Effacer TOUTES les données</button>
                 <div class="small text-muted" style="margin-top:1rem;">Version 7.8.1</div>
             </div>
         </div>
@@ -579,17 +625,17 @@
 
     <!-- Barre de navigation basse -->
     <div class="bottom-nav">
-        <div class="nav-item active" data-screen="saisie"><i>💰</i><span>Vente</span></div>
-        <div class="nav-item" data-screen="historique"><i>📋</i><span>Histo</span></div>
-        <div class="nav-item" data-screen="calculs"><i>📊</i><span>Calculs</span></div>
-        <div class="nav-item" data-screen="stocks"><i>📦</i><span>Stock</span></div>
-        <div class="nav-item" data-screen="resume"><i>📈</i><span>Résumé</span></div>
-        <div class="nav-item" data-screen="archives"><i>📋</i><span>Journal</span></div>
-        <div class="nav-item" data-screen="profile"><i>⚙️</i><span>Param</span></div>
+        <div class="nav-item active" data-screen="saisie"><span class="material-icons">attach_money</span><span>Vente</span></div>
+        <div class="nav-item" data-screen="historique"><span class="material-icons">history</span><span>Histo</span></div>
+        <div class="nav-item" data-screen="calculs"><span class="material-icons">calculate</span><span>Calculs</span></div>
+        <div class="nav-item" data-screen="stocks"><span class="material-icons">inventory</span><span>Stock</span></div>
+        <div class="nav-item" data-screen="resume"><span class="material-icons">assessment</span><span>Résumé</span></div>
+        <div class="nav-item" data-screen="archives"><span class="material-icons">article</span><span>Journal</span></div>
+        <div class="nav-item" data-screen="profile"><span class="material-icons">settings</span><span>Param</span></div>
     </div>
 
     <!-- Bouton d'installation personnalisé (Android) -->
-    <button id="installButton">📲 Installer l'application</button>
+    <button id="installButton"><span class="material-icons">install_mobile</span> Installer l'application</button>
 
     <!-- Guide d'installation iOS -->
     <div id="iosInstallGuide">
@@ -631,6 +677,7 @@
                 online: navigator.onLine,
                 lastStockAlert: false,
                 backupTimerId: null,
+                filterTimeout: null,
             };
 
             // Détection de la connexion
@@ -1290,10 +1337,20 @@
 
             function editerVente(vente, newQty, newPrix) {
                 if (AppState.isReadOnly) { showMessage('Lecture seule', 'error'); return; }
+                // Vérifier que tous les lots existent encore
+                for (let p of vente.preleves) {
+                    const lot = AppState.stocks.find(l => l.lot_id === p.lot_id);
+                    if (!lot) {
+                        showMessage('Impossible de modifier : un lot associé a été supprimé.', 'error');
+                        return;
+                    }
+                }
+                // Annuler l'ancienne vente
                 for (let p of vente.preleves) {
                     const lot = AppState.stocks.find(l => l.lot_id === p.lot_id);
                     if (lot) lot.remaining += p.qty;
                 }
+                // Appliquer la nouvelle vente
                 const lotsTries = [...AppState.stocks].sort((a,b) => new Date(a.date) - new Date(b.date));
                 let reste = newQty;
                 let newBenef = 0;
@@ -1308,6 +1365,7 @@
                     if (reste <= 0) break;
                 }
                 if (reste > 0) {
+                    // Échec : restaurer l'ancien état
                     for (let p of vente.preleves) {
                         const lot = AppState.stocks.find(l => l.lot_id === p.lot_id);
                         if (lot) lot.remaining -= p.qty;
@@ -1315,6 +1373,7 @@
                     showMessage('Stock insuffisant pour la modification', 'error');
                     return;
                 }
+                // Mise à jour
                 vente.dollars = newQty;
                 vente.prix = newPrix;
                 vente.benef = newBenef;
@@ -1712,7 +1771,7 @@
                 }
             }
 
-            // Changer de session
+            // Changer de session (permet de naviguer entre les dates)
             async function switchSession(newDate) {
                 if (newDate === AppState.currentSessionDate) return;
 
@@ -1902,6 +1961,14 @@
                 DOM.iosInstallGuide.style.display = 'none';
             });
 
+            // --- Débounce pour le filtre de l'historique (performance) ---
+            function debouncedRenderHistorique(filter) {
+                if (AppState.filterTimeout) clearTimeout(AppState.filterTimeout);
+                AppState.filterTimeout = setTimeout(() => {
+                    renderHistorique(filter);
+                }, 300);
+            }
+
             // --- Initialisation ---
             async function init() {
                 await openDB();
@@ -1947,7 +2014,7 @@
                 });
 
                 DOM.btnRefreshHist.addEventListener('click', () => renderHistorique(DOM.histFilter.value));
-                DOM.histFilter.addEventListener('input', () => renderHistorique(DOM.histFilter.value));
+                DOM.histFilter.addEventListener('input', (e) => debouncedRenderHistorique(e.target.value));
 
                 DOM.btnSaveSession.addEventListener('click', async () => {
                     await saveCurrentSession();
@@ -2049,7 +2116,7 @@
                     switchSession(today);
                 });
 
-                DOM.logFilter.addEventListener('input', () => renderLogs(DOM.logFilter.value));
+                DOM.logFilter.addEventListener('input', (e) => renderLogs(e.target.value));
 
                 DOM.periodSelect.addEventListener('change', () => {
                     DOM.customDates.style.display = DOM.periodSelect.value === 'custom' ? 'flex' : 'none';
