@@ -36,7 +36,6 @@ self.addEventListener('fetch', event => {
       .then(cachedResponse => {
         const fetchPromise = fetch(event.request)
           .then(networkResponse => {
-            // Mettre à jour le cache avec la nouvelle réponse
             if (networkResponse && networkResponse.status === 200) {
               const responseToCache = networkResponse.clone();
               caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
