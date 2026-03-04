@@ -91,7 +91,7 @@
             background-color: var(--secondary);
         }
         .app-title {
-            display: none; /* on cache l'ancien titre */
+            display: none;
         }
 
         /* Conteneur principal des écrans (avec safe area) */
@@ -876,17 +876,19 @@
             // --- Export JSON (toutes les données) ---
             async function exportJSON() {
                 try {
+                    // Récupérer toutes les sessions depuis la base
                     const sessionsTx = db.transaction('dailySessions', 'readonly');
                     const sessionsStore = sessionsTx.objectStore('dailySessions');
                     let sessions = await sessionsStore.getAll();
                     if (!Array.isArray(sessions)) sessions = [];
 
+                    // Récupérer tous les lots depuis la base
                     const lotsTx = db.transaction('stockLots', 'readonly');
                     const lotsStore = lotsTx.objectStore('stockLots');
                     let lots = await lotsStore.getAll();
                     if (!Array.isArray(lots)) lots = [];
 
-                    // Fusion avec la session courante
+                    // Fusion avec la session courante (en mémoire)
                     const todaySessionIndex = sessions.findIndex(s => s.date === AppState.currentSessionDate);
                     const currentSessionData = {
                         date: AppState.currentSessionDate,
@@ -895,17 +897,20 @@
                         actionLogs: AppState.actionLogs
                     };
                     if (todaySessionIndex >= 0) {
+                        // Remplacer la session existante par la version en mémoire (qui peut avoir des modifications non sauvegardées)
                         sessions[todaySessionIndex] = currentSessionData;
                     } else {
+                        // Ajouter la session courante (non encore sauvegardée)
                         sessions.push(currentSessionData);
                     }
 
-                    // Fusion des lots
+                    // Fusion des lots : combiner ceux de la base avec ceux en mémoire
                     const lotMap = new Map();
                     for (let lot of lots) lotMap.set(lot.lot_id, lot);
                     for (let lot of AppState.stocks) lotMap.set(lot.lot_id, lot);
                     const mergedLots = Array.from(lotMap.values());
 
+                    // Récupérer la configuration
                     const config = localStorage.getItem('fastdeal_config') || '{}';
 
                     const exportData = {
